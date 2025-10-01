@@ -179,9 +179,9 @@ class HarnessMigrator:
         self.dest_project = config["destination"]["project"]
 
         self.migration_stats = {
-            "pipelines": {"success": 0, "failed": 0},
-            "input_sets": {"success": 0, "failed": 0},
-            "templates": {"success": 0, "failed": 0},
+            "pipelines": {"success": 0, "failed": 0, "skipped": 0},
+            "input_sets": {"success": 0, "failed": 0, "skipped": 0},
+            "templates": {"success": 0, "failed": 0, "skipped": 0},
         }
         self.discovered_templates = set()  # Track templates found in pipelines
 
@@ -448,6 +448,7 @@ class HarnessMigrator:
         # Check if already exists in destination (with actual version)
         if self.check_template_exists(template_ref, actual_version):
             logger.info("  ✓ Template already exists in destination, skipping")
+            self.migration_stats["templates"]["skipped"] += 1
             return True
 
         # Extract YAML and update org/project identifiers
@@ -762,11 +763,11 @@ class HarnessMigrator:
             logger.warning("  ⚠ Interactive dialog failed (%s), auto-migrating templates", type(e).__name__)
             return True
 
-    def _create_or_update_pipeline(self, pipeline_id: str, pipeline_name: str, pipeline_details: Dict) -> bool:
+    def _create_or_update_pipeline(self, pipeline_id: str, pipeline_name: str, pipeline_details: Dict) -> Optional[bool]:
         """Create or update a pipeline in the destination.
         
         Returns:
-            True if successful, False otherwise
+            True if successful, False if skipped, None if failed
         """
         dest_endpoint = self._build_endpoint(
             "pipelines", org=self.dest_org, project=self.dest_project, resource_id=pipeline_id
@@ -776,13 +777,14 @@ class HarnessMigrator:
         if existing:
             if self._get_option("skip_existing", True):
                 logger.info("Pipeline '%s' already exists. Skipping.", pipeline_id)
-                return False  # Don't count as success or failure
+                return False  # Skipped
             else:
                 logger.info("Pipeline '%s' exists. Updating...", pipeline_id)
                 if self._is_dry_run():
                     logger.info("[DRY RUN] Would update pipeline '%s'", pipeline_name)
                     return True
-                return self.dest_client.put(dest_endpoint, json=pipeline_details) is not None
+                update_result = self.dest_client.put(dest_endpoint, json=pipeline_details)
+                return True if update_result else None
 
         # Create new pipeline
         if self._is_dry_run():
@@ -816,8 +818,9 @@ class HarnessMigrator:
 
         if not result:
             logger.error("Pipeline creation failed. Payload had keys: %s", list(pipeline_details.keys()))
+            return None  # Failed
 
-        return result is not None
+        return True  # Success
 
     def migrate_pipelines(self) -> bool:
         """Migrate pipelines from source to destination"""
@@ -860,13 +863,14 @@ class HarnessMigrator:
                 if templates:
                     logger.info("  Found %d template reference(s) in pipeline", len(templates))
                     
-                    # Log existing templates
+                    # Check which templates already exist
                     for template_ref, version_label in templates:
                         if self.check_template_exists(template_ref, version_label):
                             logger.info(
                                 "  ✓ Template '%s' (v%s) exists in dest",
                                 template_ref, version_label if version_label else "stable"
                             )
+                            self.migration_stats["templates"]["skipped"] += 1
                     
                     # Handle missing templates
                     if not self._handle_missing_templates(templates, pipeline_name):
@@ -876,13 +880,16 @@ class HarnessMigrator:
             # Create or update the pipeline
             result = self._create_or_update_pipeline(pipeline_id, pipeline_name, pipeline_details)
             
-            if result:
+            if result is True:
                 self.migration_stats["pipelines"]["success"] += 1
 
                 # Migrate associated input sets
                 if self._get_option("migrate_input_sets", True):
                     self.migrate_input_sets(pipeline_id)
-            elif result is not False:  # None means error, False means skipped
+            elif result is False:
+                # Skipped - already exists
+                self.migration_stats["pipelines"]["skipped"] += 1
+            else:  # result is None - failed
                 logger.error("✗ Failed to migrate pipeline: %s", pipeline_name)
                 self.migration_stats["pipelines"]["failed"] += 1
 
