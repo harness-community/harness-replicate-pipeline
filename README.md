@@ -1,6 +1,6 @@
 # Harness Pipeline Migration Toolkit
 
-A Python tool to migrate Harness pipelines and input sets between accounts with an intuitive interactive interface.
+A Python tool to migrate Harness pipelines, input sets, and templates between accounts with an intuitive interactive interface.
 
 ---
 
@@ -61,6 +61,7 @@ That's it! The interactive mode guides you through everything.
 - Migrates complete pipeline YAML
 - Automatically updates `orgIdentifier` and `projectIdentifier` in YAML
 - Migrates input sets associated with pipelines
+- Auto-migrates templates referenced by pipelines
 - Cross-instance support (app.harness.io ↔ app3.harness.io)
 - Auto-creates destination org/project if needed
 
@@ -228,6 +229,14 @@ Interactive mode will prompt for org/project/pipeline selections.
 - All input sets for migrated pipelines
 - Overlay input sets
 - Maintains relationship with parent pipelines
+- Auto-updated: `orgIdentifier` and `projectIdentifier`
+
+**Templates:**
+- Pipeline templates referenced by pipelines
+- Step group templates
+- Stage templates
+- Auto-migrated when pipeline dependencies are detected
+- Auto-updated: `orgIdentifier` and `projectIdentifier`
 
 ### ❌ NOT Migrated
 
@@ -235,13 +244,13 @@ The following are **not** migrated:
 
 - Connectors
 - Secrets
-- Templates
 - Triggers
 - Services, Environments, Infrastructure
 - File Store files
 - Execution history
+- Standalone templates (not referenced by pipelines)
 
-**Why?** This tool focuses on pipelines only. Use Harness's built-in export/import or Terraform for other resources.
+**Why?** This tool focuses on pipeline-related resources. Use Harness's built-in export/import or Terraform for other resources.
 
 ---
 
@@ -453,10 +462,17 @@ Check the summary:
 PIPELINES:
   Success: 5
   Failed: 0
+  Skipped: 3
 
 INPUT_SETS:
   Success: 12
   Failed: 0
+  Skipped: 0
+
+TEMPLATES:
+  Success: 8
+  Failed: 0
+  Skipped: 2
 ```
 
 Also review `migration_*.log` for details.
