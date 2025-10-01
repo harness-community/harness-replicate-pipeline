@@ -718,55 +718,69 @@ class HarnessMigrator:
                         # This can be set via --non-interactive flag or config
                         interactive = not self.config.get(
                             'non_interactive', False)
-                        logger.debug(f"Template migration: auto_migrate={auto_migrate}, interactive={interactive}, non_interactive={self.config.get('non_interactive', 'NOT SET')}")
                         
 
                         # In interactive mode, ask user what to do
                         if interactive and not auto_migrate:
-                            from prompt_toolkit.shortcuts import (  # noqa: F401, E501
-                                button_dialog)
+                            try:
+                                from prompt_toolkit.shortcuts import (  # noqa: F401, E501
+                                    button_dialog)
 
-                            template_list = "\n".join([
-                                f"  • {ref} (version: {ver if ver else 'stable'})"
-                                for ref, ver in missing_templates
-                            ])
+                                template_list = "\n".join([
+                                    f"  • {ref} (version: {ver if ver else 'stable'})"
+                                    for ref, ver in missing_templates
+                                ])
 
-                            text = (
-                                f"Pipeline '{pipeline_name}' requires "
-                                f"templates that\ndon't exist in the "
-                                f"destination:\n\n{template_list}\n\n"
-                                f"The script can automatically migrate these "
-                                f"templates from the source environment. "
-                                f"This will create the templates in the "
-                                f"destination before creating the pipeline.\n\n"
-                                f"Do you want to migrate these templates?")
+                                text = (
+                                    f"Pipeline '{pipeline_name}' requires "
+                                    f"templates that\ndon't exist in the "
+                                    f"destination:\n\n{template_list}\n\n"
+                                    f"The script can automatically migrate these "
+                                    f"templates from the source environment. "
+                                    f"This will create the templates in the "
+                                    f"destination before creating the pipeline.\n\n"
+                                    f"Do you want to migrate these templates?")
 
-                            choice = button_dialog(
-                                title="Missing Templates",
-                                text=text,
-                                buttons=[
-                                    ('migrate', 'Yes, Migrate Templates'),
-                                    ('skip_templates',
-                                     'No, Continue Without Templates'),
-                                    ('skip', 'Skip This Pipeline')
-                                ]
-                            ).run()
+                                choice = button_dialog(
+                                    title="Missing Templates",
+                                    text=text,
+                                    buttons=[
+                                        ('migrate', 'Yes, Migrate Templates'),
+                                        ('skip_templates',
+                                         'No, Continue Without Templates'),
+                                        ('skip', 'Skip This Pipeline')
+                                    ]
+                                ).run()
 
-                            if choice == 'skip' or choice is None:
-                                # User chose to skip or cancelled dialog
-                                logger.info(
-                                    "  ⊘ Skipping pipeline due to "
-                                    "missing templates")
-                                self.migration_stats['pipelines'][
-                                    'failed'] += 1
-                                continue
-                            elif choice == 'migrate':
-                                should_migrate = True
-                            else:  # 'skip_templates'
-                                should_migrate = False
+                                if choice == 'skip':
+                                    # User chose to skip
+                                    logger.info(
+                                        "  ⊘ Skipping pipeline due to "
+                                        "missing templates")
+                                    self.migration_stats['pipelines'][
+                                        'failed'] += 1
+                                    continue
+                                elif choice == 'migrate':
+                                    should_migrate = True
+                                elif choice == 'skip_templates':
+                                    should_migrate = False
+                                    logger.warning(
+                                        "  ⚠ Continuing without migrating templates "
+                                        "(pipeline creation will likely fail)")
+                                else:
+                                    # Dialog returned None or unexpected value
+                                    # Default to auto-migrate
+                                    should_migrate = True
+                                    logger.info(
+                                        "  → Dialog failed, auto-migrating %d template(s)...",
+                                        len(missing_templates))
+                            except (EOFError, KeyboardInterrupt, Exception) as e:
+                                # Dialog failed (no TTY, cancelled, or error)
+                                # Default to auto-migrate instead of failing
                                 logger.warning(
-                                    "  ⚠ Continuing without migrating templates "
-                                    "(pipeline creation will likely fail)")
+                                    "  ⚠ Interactive dialog failed (%s), "
+                                    "auto-migrating templates", type(e).__name__)
+                                should_migrate = True
                         else:
                             # Auto-migrate enabled or non-interactive mode
                             should_migrate = True
