@@ -880,6 +880,80 @@ class HarnessMigrator:
         logger.info("\n%s", "=" * 80)
 
 
+def load_config(config_file: str) -> Dict:
+    """Load configuration from JSON/JSONC file"""
+    try:
+        with open(config_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Remove JSON comments (// style)
+        # Remove single-line comments (// style) but preserve URLs with //
+        lines = content.split('\n')
+        cleaned_lines = []
+        for line in lines:
+            # Find // that's not part of a URL (not preceded by :)
+            if '//' in line:
+                # Check if it's a URL (contains ://)
+                if '://' in line:
+                    # It's a URL, don't remove the //
+                    cleaned_lines.append(line)
+                else:
+                    # It's a comment, remove everything after //
+                    comment_pos = line.find('//')
+                    cleaned_line = line[:comment_pos].rstrip()
+                    # Only add non-empty lines
+                    if cleaned_line:
+                        cleaned_lines.append(cleaned_line)
+            else:
+                cleaned_lines.append(line)
+
+        content = '\n'.join(cleaned_lines)
+
+        # Remove trailing commas before closing braces/brackets
+        content = re.sub(r',(\s*[}\]])', r'\1', content)
+
+        return json.loads(content)
+    except FileNotFoundError:
+        logger.error("Configuration file not found: %s", config_file)
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        logger.error("Invalid JSON in configuration file: %s", e)
+        sys.exit(1)
+
+
+def save_config(config: Dict, config_file: str) -> bool:
+    """Save configuration to JSON file"""
+    try:
+        # Create a clean config without API keys exposed
+        clean_config = {
+            'source': {
+                'base_url': config['source']['base_url'],
+                'api_key': config['source']['api_key'],
+                'org': config['source']['org'],
+                'project': config['source']['project']
+            },
+            'destination': {
+                'base_url': config['destination']['base_url'],
+                'api_key': config['destination']['api_key'],
+                'org': config['destination']['org'],
+                'project': config['destination']['project']
+            },
+            'options': config.get('options', {}),
+            'selected_pipelines': [
+                {'identifier': p.get('identifier'), 'name': p.get('name')}
+                for p in config.get('pipelines', [])
+            ] if config.get('pipelines') else []
+        }
+
+        with open(config_file, 'w', encoding='utf-8') as f:
+            json.dump(clean_config, f, indent=2)
+
+        return True
+    except (IOError, OSError, json.JSONDecodeError) as e:
+        logger.error("Failed to save configuration: %s", e)
+        return False
+
+
 def non_interactive_mode(config_file: str):
     """Non-interactive mode: use all values from config file without prompts"""
     print("\n" + "=" * 80)
