@@ -594,6 +594,12 @@ class HarnessMigrator:
                 self.migration_stats["input_sets"]["failed"] += 1
                 continue
 
+            # Update org/project identifiers in input set YAML
+            if "input_set_yaml" in input_set_details:
+                yaml_content = input_set_details["input_set_yaml"]
+                updated_yaml = self._update_yaml_identifiers(yaml_content, wrapper_key="inputSet")
+                input_set_details["input_set_yaml"] = updated_yaml
+
             # Create input set in destination
             create_endpoint = self._build_endpoint("input-sets", org=self.dest_org, project=self.dest_project)
 
