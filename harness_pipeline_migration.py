@@ -752,13 +752,15 @@ class HarnessMigrator:
             ).run()
 
             logger.debug("  Dialog returned: %s", choice)
-            if choice == "skip":
+            
+            # Handle both button keys and display text for compatibility
+            if choice in ["skip", "Skip This Pipeline"]:
                 logger.info("  ⊘ Skipping pipeline due to missing templates")
                 return None  # Skip pipeline
-            elif choice == "migrate":
+            elif choice in ["migrate", "Yes, Migrate Templates"]:
                 logger.info("  → User chose to migrate templates")
                 return True
-            elif choice == "skip_templates":
+            elif choice in ["skip_templates", "No, Continue Without Templates"]:
                 logger.info("  → User chose to skip templates")
                 return False
             else:
