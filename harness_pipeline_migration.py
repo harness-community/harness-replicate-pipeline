@@ -349,15 +349,19 @@ class HarnessMigrator:
             logger.error("  ✗ Failed to get template from source")
             return False
 
+
         # If we requested stable (empty version), get the actual version from response
         # When creating a template, we need to specify the actual version
-        actual_version = source_template.get('version_label', 
-                                             source_template.get('versionLabel', ''))
+        # The version is nested under 'template' key
+        template_data = source_template.get('template', {})
+        actual_version = template_data.get('version_label', 
+                                          template_data.get('versionLabel', ''))
         if not actual_version:
             logger.error("  ✗ Could not determine template version from source")
+            logger.error(f"  ✗ Available fields: {list(source_template.keys())}")
+            logger.error(f"  ✗ Template fields: {list(template_data.keys())}")
             return False
         
-        logger.debug(f"  Actual template version: {actual_version}")
 
         # Check if already exists in destination (with actual version)
         if self.check_template_exists(template_ref, actual_version):
@@ -366,7 +370,8 @@ class HarnessMigrator:
             return True
 
         # Extract YAML and update org/project identifiers
-        template_yaml = source_template.get('yaml', '')
+        # YAML is also nested under 'template' key
+        template_yaml = template_data.get('yaml', '')
         if not template_yaml:
             logger.error("  ✗ No YAML found in source template")
             return False
@@ -711,6 +716,7 @@ class HarnessMigrator:
                                                True)
                         interactive = not self.config.get(
                             'non_interactive', False)
+                        
 
                         # In interactive mode, ask user what to do
                         if interactive and not auto_migrate:
