@@ -1553,3 +1553,252 @@ def select_pipelines(
         print(f"   - {p.get('name', p.get('identifier'))}")
 
     return selected
+
+
+def select_or_create_organization(
+        client: HarnessAPIClient, source_org: str, context: str
+) -> Optional[tuple]:
+    """Interactive organization selection or creation with arrow keys
+
+    Returns:
+        tuple: (org_identifier, was_created) or None if cancelled
+    """
+    response = client.get("/v1/orgs")
+
+    existing_orgs = []
+    if response:
+        # Handle both direct array format and wrapped content format
+        if isinstance(response, list):
+            existing_orgs = response
+        elif 'content' in response:
+            existing_orgs = response.get('content', [])
+
+    # Check if source org exists
+    source_org_exists = any(
+        org.get('org', {}).get('identifier') == source_org
+        for org in existing_orgs
+    )
+
+    # Build combined options list:
+    # 1. Create with same name as source (if doesn't exist)
+    # 2. Create custom name
+    # 3. Existing organizations
+    values = []
+
+    # Option 1: Create matching org (only if source org doesn't exist)
+    if not source_org_exists:
+        values.append(
+            ('CREATE_MATCHING',
+             f"➕ Create '{source_org}' (same as source)"))
+
+    # Option 2: Create custom org
+    values.append(
+        ('CREATE_CUSTOM', "➕ Create new organization with custom name"))
+
+    # Option 3: Existing organizations
+    for org in existing_orgs:
+        org_data = org.get('org', {})
+        identifier = org_data.get('identifier', 'unknown')
+        name = org_data.get('name', identifier)
+        values.append((identifier, f"{name} ({identifier})"))
+
+    choice = radiolist_dialog(
+        title=f"Select {context.capitalize()} Organization",
+        text=(
+            "Use ↑↓ to navigate, Enter to select, Esc to cancel\n\n"
+            "Select an option:"),
+        values=values
+    ).run()
+
+    if not choice:
+        return None
+
+    # Handle create matching org
+    if choice == 'CREATE_MATCHING':
+        print(f"\nCreating organization '{source_org}'...")
+        result = client.post("/v1/orgs", json={
+            "org": {
+                "identifier": source_org,
+                "name": source_org
+            }
+        })
+        if result:
+            print(f"✓ Organization '{source_org}' created successfully")
+            return (source_org, True)  # Return tuple: (org_id, was_created)
+        else:
+            message_dialog(
+                title="Error",
+                text=f"Failed to create organization '{source_org}'"
+            ).run()
+            return None
+
+    # Handle create custom
+    elif choice == 'CREATE_CUSTOM':
+        print()
+        org_id = prompt("Enter organization identifier: ").strip()
+        org_name = prompt(
+            "Enter organization name (or press Enter for same as identifier): "
+        ).strip() or org_id
+
+        if not org_id:
+            message_dialog(
+                title="Error",
+                text="Organization identifier is required"
+            ).run()
+            return None
+
+        print(f"\nCreating organization '{org_name}'...")
+        result = client.post("/v1/orgs", json={
+            "org": {
+                "identifier": org_id,
+                "name": org_name
+            }
+        })
+        if result:
+            print(f"✓ Organization '{org_name}' created successfully")
+            return (org_id, True)  # Return tuple: (org_id, was_created)
+        else:
+            message_dialog(
+                title="Error",
+                text=f"Failed to create organization '{org_name}'"
+            ).run()
+            return None
+
+    # Otherwise, it's an existing organization identifier
+    return (choice, False)  # Return tuple: (org_id, was_created)
+
+
+def select_or_create_project(
+        client: HarnessAPIClient, org: str, source_project: str, context: str,
+        force_create: bool = False
+) -> Optional[str]:
+    """Interactive project selection or creation with arrow keys
+
+    Args:
+        force_create: If True, skip to creation dialog (for new orgs)
+    """
+    endpoint = f"/v1/orgs/{org}/projects"
+    response = client.get(endpoint)
+
+    existing_projects = []
+    if response:
+        # Handle both direct array format and wrapped content format
+        if isinstance(response, list):
+            existing_projects = response
+        elif 'content' in response:
+            existing_projects = response.get('content', [])
+
+    # If force_create is True, only show creation options
+    if force_create:
+        values = []
+        # Only show create matching and create custom options
+        values.append(
+            ('CREATE_MATCHING',
+             f"➕ Create '{source_project}' (same as source)"))
+        values.append(
+            ('CREATE_CUSTOM', "➕ Create new project with custom name"))
+
+        choice = radiolist_dialog(
+            title=f"Create {context.capitalize()} Project",
+            text=(
+                "Use ↑↓ to navigate, Enter to select, Esc to cancel\n\n"
+                "Organization was just created - "
+                "select how to create project:"),
+            values=values
+        ).run()
+    else:
+        # Check if source project exists
+        source_project_exists = any(
+            proj.get('project', {}).get('identifier') == source_project
+            for proj in existing_projects
+        )
+
+        # Build combined options list:
+        # 1. Create with same name as source (if doesn't exist)
+        # 2. Create custom name
+        # 3. Existing projects
+        values = []
+
+        # Option 1: Create matching project (only if doesn't exist)
+        if not source_project_exists:
+            values.append(
+                ('CREATE_MATCHING',
+                 f"➕ Create '{source_project}' (same as source)"))
+
+        # Option 2: Create custom project
+        values.append(
+            ('CREATE_CUSTOM', "➕ Create new project with custom name"))
+
+        # Option 3: Existing projects
+        for project in existing_projects:
+            proj_data = project.get('project', {})
+            identifier = proj_data.get('identifier', 'unknown')
+            name = proj_data.get('name', identifier)
+            values.append((identifier, f"{name} ({identifier})"))
+
+        choice = radiolist_dialog(
+            title=f"Select {context.capitalize()} Project",
+            text=(
+                "Use ↑↓ to navigate, Enter to select, Esc to cancel\n\n"
+                "Select an option:"),
+            values=values
+        ).run()
+
+    if not choice:
+        return None
+
+    # Handle create matching project
+    if choice == 'CREATE_MATCHING':
+        print(f"\nCreating project '{source_project}'...")
+        result = client.post(f"/v1/orgs/{org}/projects", json={
+            "project": {
+                "identifier": source_project,
+                "name": source_project,
+                "org": org
+            }
+        })
+        if result:
+            print(f"✓ Project '{source_project}' created successfully")
+            return source_project
+        else:
+            message_dialog(
+                title="Error",
+                text=f"Failed to create project '{source_project}'"
+            ).run()
+            return None
+
+    # Handle create custom
+    elif choice == 'CREATE_CUSTOM':
+        print()
+        proj_id = prompt("Enter project identifier: ").strip()
+        proj_name = prompt(
+            "Enter project name (or press Enter for same as identifier): "
+        ).strip() or proj_id
+
+        if not proj_id:
+            message_dialog(
+                title="Error",
+                text="Project identifier is required"
+            ).run()
+            return None
+
+        print(f"\nCreating project '{proj_name}'...")
+        result = client.post(f"/v1/orgs/{org}/projects", json={
+            "project": {
+                "identifier": proj_id,
+                "name": proj_name,
+                "org": org
+            }
+        })
+        if result:
+            print(f"✓ Project '{proj_name}' created successfully")
+            return proj_id
+        else:
+            message_dialog(
+                title="Error",
+                text=f"Failed to create project '{proj_name}'"
+            ).run()
+            return None
+
+    # Otherwise, it's an existing project identifier
+    return choice
