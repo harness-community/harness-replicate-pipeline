@@ -365,3 +365,75 @@ class HarnessMigrator:
         }
 
         return self.dest_client.post(endpoint, json=payload)
+    
+    def migrate_template(
+            self, template_ref: str, version_label: str) -> bool:
+        """Migrate a single template from source to destination
+
+        Args:
+            template_ref: Template identifier
+            version_label: Template version
+
+        Returns:
+            True if successful, False otherwise
+        """
+        logger.info(
+            "  Migrating template: %s (v%s)", template_ref, version_label)
+
+        # Check if already exists in destination
+        if self.check_template_exists(template_ref, version_label):
+            logger.info(
+                "  ✓ Template already exists in destination, skipping")
+            return True
+
+        # Get template from source
+        source_template = self.get_template(
+            template_ref, version_label,
+            self.source_org, self.source_project,
+            self.source_client)
+
+        if not source_template:
+            logger.error("  ✗ Failed to get template from source")
+            return False
+
+        # Extract YAML and update org/project identifiers
+        template_yaml = source_template.get('yaml', '')
+        if not template_yaml:
+            logger.error("  ✗ No YAML found in source template")
+            return False
+
+        # Parse and update the YAML to use destination org/project
+        import yaml  # noqa: F401
+        try:
+            template_dict = yaml.safe_load(template_yaml)
+            if 'template' in template_dict:
+                template_dict['template']['orgIdentifier'] = (
+                    self.dest_org)
+                template_dict['template']['projectIdentifier'] = (
+                    self.dest_project)
+            else:
+                # Sometimes the YAML might not have the 'template' wrapper
+                template_dict['orgIdentifier'] = self.dest_org
+                template_dict['projectIdentifier'] = self.dest_project
+
+            # Convert back to YAML
+            updated_yaml = yaml.dump(
+                template_dict, default_flow_style=False, sort_keys=False)
+        except Exception as e:  # noqa: E722
+            logger.error("  ✗ Failed to update template YAML: %s", e)
+            return False
+
+        # Create in destination
+        result = self.create_template(
+            updated_yaml,
+            is_stable=source_template.get('stable_template', True),
+            comments=f"Migrated from {self.source_org}/{self.source_project}")
+
+        if result:
+            logger.info("  ✓ Template migrated successfully")
+            self.migration_stats['templates']['success'] += 1
+            return True
+        else:
+            logger.error("  ✗ Failed to create template in destination")
+            self.migration_stats['templates']['failed'] += 1
+            return False
