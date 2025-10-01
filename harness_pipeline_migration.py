@@ -568,7 +568,7 @@ class HarnessMigrator:
 
         # List input sets
         endpoint = self._build_endpoint("input-sets", org=self.source_org, project=self.source_project)
-        params = {"pipelineIdentifier": pipeline_id}
+        params = {"pipeline": pipeline_id}
         input_sets_response = self.source_client.get(endpoint, params=params)
         input_sets = HarnessAPIClient.normalize_response(input_sets_response)
 
@@ -587,7 +587,7 @@ class HarnessMigrator:
             get_endpoint = self._build_endpoint(
                 "input-sets", org=self.source_org, project=self.source_project, resource_id=input_set_id
             )
-            input_set_details = self.source_client.get(get_endpoint, params=params)
+            input_set_details = self.source_client.get(get_endpoint, params={"pipeline": pipeline_id})
 
             if not input_set_details:
                 logger.error("  Failed to get details for input set: %s", input_set_id)
@@ -601,7 +601,7 @@ class HarnessMigrator:
                 logger.info("  [DRY RUN] Would create input set '%s'", input_set_name)
                 result = True
             else:
-                result = self.dest_client.post(create_endpoint, params=params, json=input_set_details)
+                result = self.dest_client.post(create_endpoint, params={"pipeline": pipeline_id}, json=input_set_details)
 
             if result:
                 logger.info("  ✓ Input set '%s' migrated successfully", input_set_name)
