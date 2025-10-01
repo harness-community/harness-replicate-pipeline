@@ -1802,3 +1802,92 @@ def select_or_create_project(
 
     # Otherwise, it's an existing project identifier
     return choice
+
+
+def main():
+    """Main entry point"""
+    parser = argparse.ArgumentParser(
+        description='Migrate Harness pipelines between accounts',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Usage Examples:
+    # Interactive mode (with dialogs for selection)
+    python harness_pipeline_migration.py
+
+    # Non-interactive mode (use all values from config file)
+    python harness_pipeline_migration.py --non-interactive
+
+    # Dry run to test without making changes
+    python harness_pipeline_migration.py --dry-run
+
+    # Debug mode for troubleshooting
+    python harness_pipeline_migration.py --debug
+
+Configuration File Format (supports JSONC with comments):
+{
+  "source": {
+    "base_url": "https://app.harness.io",
+    "api_key": "your-source-api-key",
+    // "org": "source_org",  // Leave commented to select interactively
+    // "project": "source_project"  // Leave commented to select interactively
+  },
+  "destination": {
+    "base_url": "https://app3.harness.io",
+    "api_key": "your-dest-api-key",
+    // "org": "dest_org",  // Leave commented to select interactively
+    // "project": "dest_project"  // Leave commented to select interactively
+  },
+  "options": {
+    "migrate_input_sets": true,
+    "skip_existing": true
+  }
+}
+        """
+    )
+
+    parser.add_argument(
+        '--config',
+        type=str,
+        default='config.json',
+        help='Path to configuration JSON/JSONC file (default: config.json)'
+    )
+
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Perform a dry run without making changes'
+    )
+
+    parser.add_argument(
+        '--debug',
+        action='store_true',
+        help='Enable debug logging for troubleshooting'
+    )
+
+    parser.add_argument(
+        '--non-interactive',
+        action='store_true',
+        help='Skip prompts and use all values from config file (no dialogs)'
+    )
+
+    args = parser.parse_args()
+
+    # Setup logging with debug level if requested
+    setup_logging(debug=args.debug)
+
+    # Choose mode based on flag
+    if args.non_interactive:
+        config = non_interactive_mode(args.config)
+    else:
+        # Use hybrid mode with interactive prompts
+        config = hybrid_mode(args.config)
+
+    # Run migration
+    migrator = HarnessMigrator(config)
+    success = migrator.run_migration()
+
+    sys.exit(0 if success else 1)
+
+
+if __name__ == '__main__':
+    main()
