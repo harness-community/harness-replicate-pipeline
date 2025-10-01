@@ -794,7 +794,7 @@ class HarnessMigrator:
         # Update org/project identifiers in YAML
         yaml_content = pipeline_details.get("pipeline_yaml", "")
         if yaml_content:
-            yaml_content = self._update_yaml_identifiers(yaml_content)
+            yaml_content = self._update_yaml_identifiers(yaml_content, wrapper_key="pipeline")
             pipeline_details["pipeline_yaml"] = yaml_content
 
         # Build creation payload
