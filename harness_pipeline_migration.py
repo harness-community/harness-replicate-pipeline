@@ -897,3 +897,62 @@ class HarnessMigrator:
             time.sleep(0.5)
 
         return True
+
+    def run_migration(self):
+        """Execute the full migration process"""
+        dry_run = self.config.get('dry_run', False)
+
+        logger.info("=" * 80)
+        if dry_run:
+            logger.info("HARNESS PIPELINE MIGRATION - DRY RUN MODE")
+            logger.info("NO CHANGES WILL BE MADE")
+        else:
+            logger.info("HARNESS PIPELINE MIGRATION")
+        logger.info("=" * 80)
+        logger.info("Source: %s", self.config['source']['base_url'])
+        logger.info(
+            "  Org: %s, Project: %s", self.source_org, self.source_project)
+        logger.info("Destination: %s", self.config['destination']['base_url'])
+        logger.info("  Org: %s, Project: %s", self.dest_org, self.dest_project)
+
+        # Show selected pipelines if any
+        selected_ids = self.config.get('selected_pipelines', [])
+        if selected_ids:
+            logger.info("  Selected Pipelines: %d", len(selected_ids))
+
+        logger.info("=" * 80)
+
+        # Step 1: Verify prerequisites
+        if not self.verify_prerequisites():
+            logger.error(
+                "Prerequisites verification failed. Aborting migration.")
+            return False
+
+        # Step 2: Migrate pipelines
+        if not self.migrate_pipelines():
+            logger.error("Pipeline migration failed")
+            return False
+
+        # Print summary
+        self.print_summary()
+
+        return True
+
+    def print_summary(self):
+        """Print migration summary"""
+        dry_run = self.config.get('dry_run', False)
+
+        logger.info("\n%s", "=" * 80)
+        if dry_run:
+            logger.info("MIGRATION SUMMARY - DRY RUN")
+            logger.info("(No actual changes were made)")
+        else:
+            logger.info("MIGRATION SUMMARY")
+        logger.info("=" * 80)
+
+        for resource_type, stats in self.migration_stats.items():
+            logger.info("\n%s:", resource_type.upper())
+            for status, count in stats.items():
+                logger.info("  %s: %s", status.capitalize(), count)
+
+        logger.info("\n%s", "=" * 80)
