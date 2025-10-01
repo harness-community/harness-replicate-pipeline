@@ -182,7 +182,7 @@ class HarnessMigrator:
         try:
             pipeline_dict = yaml.safe_load(yaml_content)
             self._find_template_refs(pipeline_dict, templates)
-        except Exception as e:
+        except (yaml.YAMLError, ValueError, TypeError) as e:
             logger.warning("Could not parse YAML to extract templates: %s", e)
             # Fallback to regex if YAML parsing fails
             # Pattern matches templateRef and versionLabel on same or adjacent lines
@@ -370,8 +370,8 @@ class HarnessMigrator:
         )
         if not actual_version:
             logger.error("  ✗ Could not determine template version from source")
-            logger.error(f"  ✗ Available fields: {list(source_template.keys())}")
-            logger.error(f"  ✗ Template fields: {list(template_data.keys())}")
+            logger.error("  ✗ Available fields: %s", list(source_template.keys()))
+            logger.error("  ✗ Template fields: %s", list(template_data.keys()))
             return False
 
         # Check if already exists in destination (with actual version)
@@ -404,7 +404,7 @@ class HarnessMigrator:
             updated_yaml = yaml.dump(
                 template_dict, default_flow_style=False, sort_keys=False
             )
-        except Exception as e:  # noqa: E722
+        except (yaml.YAMLError, ValueError, TypeError, KeyError) as e:
             logger.error("  ✗ Failed to update template YAML: %s", e)
             return False
 
@@ -634,7 +634,7 @@ class HarnessMigrator:
 
             if not pipeline_response:
                 logger.warning(
-                    "Could not fetch pipeline details, " "trying to use list data: %s",
+                    "Could not fetch pipeline details, trying to use list data: %s",
                     pipeline_id,
                 )
                 # Fallback to list data if available
@@ -730,9 +730,7 @@ class HarnessMigrator:
                         # In interactive mode, ask user what to do
                         if interactive and not auto_migrate:
                             try:
-                                from prompt_toolkit.shortcuts import (  # noqa: F401, E501
-                                    button_dialog,
-                                )
+                                # button_dialog is already imported at top
 
                                 template_list = "\n".join(
                                     [
@@ -789,7 +787,7 @@ class HarnessMigrator:
                                         "  → Dialog failed, auto-migrating %d template(s)...",
                                         len(missing_templates),
                                     )
-                            except (EOFError, KeyboardInterrupt, Exception) as e:
+                            except (EOFError, KeyboardInterrupt, OSError, ValueError) as e:
                                 # Dialog failed (no TTY, cancelled, or error)
                                 # Default to auto-migrate instead of failing
                                 logger.warning(
@@ -1123,11 +1121,8 @@ def non_interactive_mode(config_file: str):
         "non_interactive": True,
     }
 
-    print(f"Source: {config['source']['org']}/" f"{config['source']['project']}")
-    print(
-        f"Destination: {config['destination']['org']}/"
-        f"{config['destination']['project']}"
-    )
+    print(f"Source: {config['source']['org']}/{config['source']['project']}")
+    print(f"Destination: {config['destination']['org']}/{config['destination']['project']}")
     print(f"Pipelines: {len(config['pipelines'])}")
 
     return config
@@ -1138,7 +1133,7 @@ def hybrid_mode(config_file: str):
     print("\n" + "=" * 80)
     print("HARNESS PIPELINE MIGRATION")
     print("=" * 80)
-    print("Using config file values where available, " "prompting for missing fields")
+    print("Using config file values where available, prompting for missing fields")
 
     # Load base config
     base_config = load_config(config_file)
@@ -1277,7 +1272,7 @@ def _get_selections_from_clients(source_client, dest_client, base_config, config
     # Check if already configured
     pre_selected_pipelines = base_config.get("selected_pipelines", [])
     if pre_selected_pipelines:
-        print(f"ℹ️  Previously selected " f"{len(pre_selected_pipelines)} pipeline(s):")
+        print(f"ℹ️  Previously selected {len(pre_selected_pipelines)} pipeline(s):")
         for p in pre_selected_pipelines[:5]:  # Show first 5
             print(f"   - {p.get('name', p.get('identifier'))}")
         if len(pre_selected_pipelines) > 5:
@@ -1311,8 +1306,7 @@ def _get_selections_from_clients(source_client, dest_client, base_config, config
                     p for p in all_pipes if p.get("identifier") in pre_ids
                 ]
                 print(
-                    f"✓ Using {len(selected_pipelines)} "
-                    f"previously selected pipeline(s)"
+                    f"✓ Using {len(selected_pipelines)} previously selected pipeline(s)"
                 )
             else:
                 print("⚠️  Could not fetch pipelines, re-selecting...")
