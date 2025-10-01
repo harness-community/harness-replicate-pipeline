@@ -243,3 +243,125 @@ class HarnessMigrator:
             'templates': {'success': 0, 'failed': 0}
         }
         self.discovered_templates = set()  # Track templates found in pipelines
+
+    def extract_template_refs(self, yaml_content: str) -> List[tuple]:
+        """Extract template references from pipeline YAML
+        
+        Returns list of tuples: (templateRef, versionLabel)
+        """
+        import re
+        templates = []
+        
+        # Pattern to match templateRef and versionLabel
+        # Looks for: templateRef: <identifier> followed by versionLabel: "<version>"
+        pattern = r'templateRef:\s*(\S+)\s+versionLabel:\s*["\']?([^"\'\n]+)["\']?'
+        matches = re.findall(pattern, yaml_content)
+        
+        for template_ref, version_label in matches:
+            templates.append((template_ref, version_label))
+            self.discovered_templates.add((template_ref, version_label))
+        
+        return templates
+
+    def list_templates(
+            self, org: str, project: str,
+            client: Optional[HarnessAPIClient] = None) -> List[Dict]:
+        """List all templates in a project
+
+        Args:
+            org: Organization identifier
+            project: Project identifier
+            client: API client to use (defaults to source_client)
+
+        Returns:
+            List of template dictionaries
+        """
+        if client is None:
+            client = self.source_client
+
+        endpoint = f"/v1/orgs/{org}/projects/{project}/templates"
+        response = client.get(endpoint)
+
+        if response is None:
+            return []
+
+        # Handle both direct array format and wrapped content format
+        if isinstance(response, list):
+            return response
+        elif 'content' in response:
+            return response.get('content', [])
+        else:
+            return []
+
+    def get_template(
+            self, template_ref: str, version_label: str,
+            org: str, project: str,
+            client: Optional[HarnessAPIClient] = None) -> Optional[Dict]:
+        """Get template details including YAML
+
+        Args:
+            template_ref: Template identifier
+            version_label: Template version
+            org: Organization identifier
+            project: Project identifier
+            client: API client to use (defaults to source_client)
+
+        Returns:
+            Template dictionary with YAML, or None if not found
+        """
+        if client is None:
+            client = self.source_client
+
+        endpoint = (
+            f"/v1/orgs/{org}/"
+            f"projects/{project}/"
+            f"templates/{template_ref}/"
+            f"versions/{version_label}")
+
+        return client.get(endpoint)
+    
+    def check_template_exists(
+            self, template_ref: str, version_label: str) -> bool:
+        """Check if a template exists in destination
+
+        Args:
+            template_ref: Template identifier
+            version_label: Template version
+
+        Returns:
+            True if exists, False otherwise
+        """
+        dest_template = self.get_template(
+            template_ref, version_label,
+            self.dest_org, self.dest_project,
+            self.dest_client)
+        return dest_template is not None
+
+    def create_template(
+            self, template_yaml: str, is_stable: bool = True,
+            comments: str = "Migrated template") -> Optional[Dict]:
+        """Create a template in destination
+
+        NOTE: The template_yaml MUST include orgIdentifier and
+        projectIdentifier fields that match the destination org and project.
+
+        Args:
+            template_yaml: Complete template YAML definition
+            is_stable: Whether to mark this version as stable
+            comments: Comments for the template creation
+
+        Returns:
+            Created template response, or None if failed
+        """
+        endpoint = (
+            f"/v1/orgs/{self.dest_org}/"
+            f"projects/{self.dest_project}/"
+            f"templates")
+
+        payload = {
+            'template_yaml': template_yaml,
+            'is_stable': is_stable,
+            'comments': comments
+        }
+
+        return self.dest_client.post(endpoint, json=payload)
