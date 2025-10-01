@@ -1,0 +1,20 @@
+{
+  "source": {
+    "base_url": "https://app.harness.io",
+    "account_id": "YOUR_SOURCE_ACCOUNT_ID",
+    "api_key": "YOUR_SOURCE_API_KEY_HERE",
+    "org": "source_org_identifier",
+    "project": "source_project_identifier"
+  },
+  "destination": {
+    "base_url": "https://app3.harness.io",
+    "account_id": "YOUR_DESTINATION_ACCOUNT_ID",
+    "api_key": "YOUR_DESTINATION_API_KEY_HERE",
+    "org": "dest_org_identifier",
+    "project": "dest_project_identifier"
+  },
+  "options": {
+    "migrate_input_sets": true,
+    "skip_existing": true
+  }
+}
