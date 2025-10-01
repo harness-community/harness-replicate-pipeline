@@ -55,7 +55,7 @@ def apply_cli_overrides(config: Dict[str, Any], args) -> Dict[str, Any]:
     """Apply CLI argument overrides to config with priority: config file > CLI args > interactive"""
     # Create a copy to avoid modifying the original
     updated_config = config.copy()
-    
+
     # Source configuration overrides
     if args.source_url:
         updated_config.setdefault("source", {})["base_url"] = args.source_url
@@ -65,7 +65,7 @@ def apply_cli_overrides(config: Dict[str, Any], args) -> Dict[str, Any]:
         updated_config.setdefault("source", {})["org"] = args.source_org
     if args.source_project:
         updated_config.setdefault("source", {})["project"] = args.source_project
-    
+
     # Destination configuration overrides
     if args.dest_url:
         updated_config.setdefault("destination", {})["base_url"] = args.dest_url
@@ -75,22 +75,22 @@ def apply_cli_overrides(config: Dict[str, Any], args) -> Dict[str, Any]:
         updated_config.setdefault("destination", {})["org"] = args.dest_org
     if args.dest_project:
         updated_config.setdefault("destination", {})["project"] = args.dest_project
-    
+
     # Migration options overrides
     options = updated_config.setdefault("options", {})
-    
+
     # Handle migrate_input_sets (CLI args override config)
     if args.migrate_input_sets:
         options["migrate_input_sets"] = True
     elif args.no_migrate_input_sets:
         options["migrate_input_sets"] = False
-    
+
     # Handle skip_existing (CLI args override config)
     if args.skip_existing:
         options["skip_existing"] = True
     elif args.no_skip_existing:
         options["skip_existing"] = False
-    
+
     return updated_config
 
 
@@ -111,7 +111,7 @@ class HarnessAPIClient:
     @staticmethod
     def normalize_response(response: Optional[Union[Dict, List]]) -> List[Dict]:
         """Normalize API response to always return a list.
-        
+
         Handles both direct array format and wrapped content format.
         Returns empty list if response is None or invalid.
         """
@@ -240,23 +240,23 @@ class HarnessMigrator:
         """Check if running in interactive mode."""
         return not self.config.get("non_interactive", False)
 
-    def _build_endpoint(self, resource: Optional[str] = None, org: Optional[str] = None, 
-                       project: Optional[str] = None, resource_id: Optional[str] = None, 
+    def _build_endpoint(self, resource: Optional[str] = None, org: Optional[str] = None,
+                       project: Optional[str] = None, resource_id: Optional[str] = None,
                        sub_resource: Optional[str] = None) -> str:
         """Build consistent API endpoint paths.
-        
+
         Args:
             resource: Main resource type (e.g., 'orgs', 'projects', 'pipelines')
             org: Organization identifier
             project: Project identifier
             resource_id: Specific resource identifier
             sub_resource: Sub-resource path (e.g., 'versions/v1')
-        
+
         Returns:
             Formatted endpoint path
         """
         parts = ["/v1"]
-        
+
         if org:
             parts.extend(["orgs", org])
         if project:
@@ -267,28 +267,28 @@ class HarnessMigrator:
             parts.append(resource_id)
         if sub_resource:
             parts.append(sub_resource)
-            
+
         return "/".join(parts)
 
     def _update_yaml_identifiers(self, yaml_content: str, wrapper_key: Optional[str] = None) -> str:
         """Update org and project identifiers in YAML content.
-        
+
         Args:
             yaml_content: YAML string to update
             wrapper_key: Optional wrapper key (e.g., 'template', 'pipeline')
-        
+
         Returns:
             Updated YAML string
         """
         try:
             data = yaml.safe_load(yaml_content)
-            
+
             # Determine where to update identifiers
             target = data.get(wrapper_key, data) if wrapper_key else data
-            
+
             target["orgIdentifier"] = self.dest_org
             target["projectIdentifier"] = self.dest_project
-            
+
             return yaml.dump(data, default_flow_style=False, sort_keys=False)
         except (yaml.YAMLError, ValueError, TypeError, KeyError) as e:
             logger.error("Failed to update YAML identifiers: %s", e)
@@ -395,7 +395,7 @@ class HarnessMigrator:
         # Build sub_resource for version if specified
         sub_resource = f"versions/{version_label}" if version_label else None
         endpoint = self._build_endpoint(
-            "templates", org=org, project=project, 
+            "templates", org=org, project=project,
             resource_id=template_ref, sub_resource=sub_resource
         )
 
@@ -503,7 +503,7 @@ class HarnessMigrator:
 
         # Update YAML to use destination org/project and set version
         updated_yaml = self._update_yaml_identifiers(template_yaml, wrapper_key="template")
-        
+
         # Ensure version is set in the YAML
         try:
             template_dict = yaml.safe_load(updated_yaml)
@@ -554,7 +554,7 @@ class HarnessMigrator:
         if not create_org:
             logger.error("Failed to create organization")
             return False
-        
+
         logger.info("Organization '%s' created successfully", self.dest_org)
         return True
 
@@ -589,20 +589,20 @@ class HarnessMigrator:
         if not create_project:
             logger.error("Failed to create project")
             return False
-        
+
         logger.info("Project '%s' created successfully", self.dest_project)
         return True
 
     def verify_prerequisites(self) -> bool:
         """Verify that destination org and project exist"""
         logger.info("Verifying destination org and project...")
-        
+
         if not self._create_org_if_missing():
             return False
-        
+
         if not self._create_project_if_missing():
             return False
-        
+
         return True
 
     def migrate_input_sets(self, pipeline_id: str) -> bool:
@@ -726,7 +726,7 @@ class HarnessMigrator:
 
     def _handle_missing_templates(self, templates: List[tuple], pipeline_name: str) -> bool:
         """Handle missing templates - either migrate them or skip pipeline.
-        
+
         Returns:
             True to continue with pipeline migration, False to skip
         """
@@ -772,7 +772,7 @@ class HarnessMigrator:
 
     def _ask_user_about_templates(self, missing_templates: List[tuple], pipeline_name: str) -> Optional[bool]:
         """Ask user interactively what to do about missing templates.
-        
+
         Returns:
             True to migrate templates, False to skip templates, None to skip pipeline
         """
@@ -801,7 +801,7 @@ class HarnessMigrator:
             ).run()
 
             logger.debug("  Dialog returned: %s", choice)
-            
+
             # Handle both button keys and display text for compatibility
             if choice in ["skip", "Skip This Pipeline"]:
                 logger.info("  ⊘ Skipping pipeline due to missing templates")
@@ -822,7 +822,7 @@ class HarnessMigrator:
 
     def _create_or_update_pipeline(self, pipeline_id: str, pipeline_name: str, pipeline_details: Dict) -> Optional[bool]:
         """Create or update a pipeline in the destination.
-        
+
         Returns:
             True if successful, False if skipped, None if failed
         """
@@ -901,7 +901,7 @@ class HarnessMigrator:
                 logger.error("Pipeline missing identifier, skipping: %s", pipeline)
                 self.migration_stats["pipelines"]["failed"] += 1
                 continue
-            
+
             pipeline_name = pipeline.get("name") or pipeline_id
 
             logger.info("\nMigrating pipeline: %s (%s)", pipeline_name, pipeline_id)
@@ -919,7 +919,7 @@ class HarnessMigrator:
                 templates = self.extract_template_refs(yaml_content)
                 if templates:
                     logger.info("  Found %d template reference(s) in pipeline", len(templates))
-                    
+
                     # Check which templates already exist
                     for template_ref, version_label in templates:
                         if self.check_template_exists(template_ref, version_label):
@@ -928,7 +928,7 @@ class HarnessMigrator:
                                 template_ref, version_label if version_label else "stable"
                             )
                             self.migration_stats["templates"]["skipped"] += 1
-                    
+
                     # Handle missing templates
                     if not self._handle_missing_templates(templates, pipeline_name):
                         self.migration_stats["pipelines"]["failed"] += 1
@@ -936,7 +936,7 @@ class HarnessMigrator:
 
             # Create or update the pipeline
             result = self._create_or_update_pipeline(pipeline_id, pipeline_name, pipeline_details)
-            
+
             if result is True:
                 self.migration_stats["pipelines"]["success"] += 1
 
