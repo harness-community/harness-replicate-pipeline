@@ -4,7 +4,51 @@ A Python tool to migrate Harness pipelines, input sets, and templates between ac
 
 ---
 
+## Quick Setup
+
+### Automated Setup (Recommended)
+
+For the fastest setup, use the included setup script:
+
+```bash
+# Make setup script executable and run it
+chmod +x setup.sh
+./setup.sh
+```
+
+**What the setup script does:**
+- ✅ Checks Python 3.7+ is installed
+- ✅ Installs all dependencies from `requirements.txt`
+- ✅ Creates `config.json` from template if needed
+- ✅ Provides next steps for configuration
+
+### Manual Setup
+
+If you prefer manual setup:
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Copy config template (optional)
+cp config.example.json config.json
+```
+
+---
+
 ## Quick Start
+
+### Option 1: Automated Setup (Recommended)
+
+```bash
+# Run the setup script
+chmod +x setup.sh
+./setup.sh
+```
+
+Then skip to [Generate API Keys](#2-generate-api-keys) below.
+
+### Option 2: Manual Setup
 
 ### 1. Install Dependencies
 
@@ -666,6 +710,9 @@ fi
 
 ### Essential Commands
 ```bash
+# Setup (first time only)
+chmod +x setup.sh && ./setup.sh
+
 # Dry-run (always start here)
 python harness_pipeline_migration.py --dry-run
 
