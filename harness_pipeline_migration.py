@@ -956,3 +956,60 @@ class HarnessMigrator:
                 logger.info("  %s: %s", status.capitalize(), count)
 
         logger.info("\n%s", "=" * 80)
+
+
+def non_interactive_mode(config_file: str):
+    """Non-interactive mode: use all values from config file without prompts"""
+    print("\n" + "=" * 80)
+    print("HARNESS PIPELINE MIGRATION - NON-INTERACTIVE MODE")
+    print("=" * 80)
+    print("Using all values from config file")
+
+    # Load config
+    base_config = load_config(config_file)
+
+    # Validate required fields
+    required_fields = {
+        'source': ['base_url', 'api_key', 'org', 'project'],
+        'destination': ['base_url', 'api_key', 'org', 'project']
+    }
+
+    for section, fields in required_fields.items():
+        if section not in base_config:
+            print(f"❌ Error: Missing '{section}' section in config")
+            sys.exit(1)
+        for field in fields:
+            if not base_config[section].get(field):
+                print(f"❌ Error: Missing '{field}' in '{section}' section")
+                sys.exit(1)
+
+    # Build config from file
+    config = {
+        'source': {
+            'base_url': base_config['source']['base_url'],
+            'api_key': base_config['source']['api_key'],
+            'org': base_config['source']['org'],
+            'project': base_config['source']['project']
+        },
+        'destination': {
+            'base_url': base_config['destination']['base_url'],
+            'api_key': base_config['destination']['api_key'],
+            'org': base_config['destination']['org'],
+            'project': base_config['destination']['project']
+        },
+        'options': base_config.get('options', {
+            'migrate_input_sets': True,
+            'skip_existing': True
+        }),
+        'pipelines': base_config.get('selected_pipelines', []),
+        'dry_run': False
+    }
+
+    print(
+        f"Source: {config['source']['org']}/"
+        f"{config['source']['project']}")
+    print(f"Destination: {config['destination']['org']}/"
+          f"{config['destination']['project']}")
+    print(f"Pipelines: {len(config['pipelines'])}")
+
+    return config
