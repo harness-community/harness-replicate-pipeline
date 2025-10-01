@@ -258,6 +258,7 @@ The following are **not** migrated:
 
 ### Command Line Options
 
+**Basic Options:**
 ```bash
 python harness_pipeline_migration.py [OPTIONS]
 
@@ -269,8 +270,41 @@ Options:
   -h, --help              Show help message
 ```
 
+**Source Configuration:**
+```bash
+  --source-url URL         Source Harness base URL (e.g., https://app.harness.io)
+  --source-api-key KEY     Source Harness API key (starts with 'sat.')
+  --source-org ORG         Source organization identifier
+  --source-project PROJ    Source project identifier
+```
+
+**Destination Configuration:**
+```bash
+  --dest-url URL           Destination Harness base URL (e.g., https://app3.harness.io)
+  --dest-api-key KEY       Destination Harness API key (starts with 'sat.')
+  --dest-org ORG           Destination organization identifier
+  --dest-project PROJ      Destination project identifier
+```
+
+**Migration Options:**
+```bash
+  --migrate-input-sets     Migrate input sets with pipelines (default: true)
+  --no-migrate-input-sets  Skip migrating input sets
+  --skip-existing          Skip pipelines that already exist (default: true)
+  --no-skip-existing       Update/overwrite existing pipelines
+```
+
+### Configuration Priority
+
+**Priority Order:** `Config file > CLI arguments > Interactive prompts`
+
+- **Config file values** are loaded first
+- **CLI arguments** override config file values
+- **Interactive prompts** only appear for missing values
+
 ### Common Usage
 
+**Interactive Mode:**
 ```bash
 # Interactive with dry-run (recommended first)
 python harness_pipeline_migration.py --dry-run
@@ -278,9 +312,47 @@ python harness_pipeline_migration.py --dry-run
 # Interactive actual migration
 python harness_pipeline_migration.py
 
-# Non-interactive with custom config
-python harness_pipeline_migration.py --config prod.json --non-interactive
+# Override specific values via CLI
+python harness_pipeline_migration.py --source-org my_org --dest-org target_org
+```
 
+**Non-Interactive Mode:**
+```bash
+# Use config file only
+python harness_pipeline_migration.py --non-interactive
+
+# Override config with CLI args
+python harness_pipeline_migration.py --non-interactive --no-migrate-input-sets
+
+# Custom config file
+python harness_pipeline_migration.py --config prod.json --non-interactive
+```
+
+**Full CLI Configuration:**
+```bash
+# Minimal config file needed (just API keys)
+python harness_pipeline_migration.py \
+  --source-url https://app.harness.io \
+  --source-api-key sat.xxxxx.xxxxx.xxxxx \
+  --source-org source_org \
+  --source-project source_project \
+  --dest-url https://app3.harness.io \
+  --dest-api-key sat.yyyyy.yyyyy.yyyyy \
+  --dest-org dest_org \
+  --dest-project dest_project
+
+# With migration options
+python harness_pipeline_migration.py \
+  --source-url https://app.harness.io \
+  --source-api-key sat.xxxxx.xxxxx.xxxxx \
+  --dest-url https://app3.harness.io \
+  --dest-api-key sat.yyyyy.yyyyy.yyyyy \
+  --no-migrate-input-sets \
+  --no-skip-existing
+```
+
+**Debug and Testing:**
+```bash
 # Debug mode for troubleshooting
 python harness_pipeline_migration.py --debug
 
@@ -605,6 +677,26 @@ python harness_pipeline_migration.py --non-interactive
 
 # Debug
 python harness_pipeline_migration.py --debug
+```
+
+### CLI Configuration Examples
+```bash
+# Override specific values
+python harness_pipeline_migration.py --source-org my_org --dest-org target_org
+
+# Override migration options
+python harness_pipeline_migration.py --no-migrate-input-sets --no-skip-existing
+
+# Full CLI configuration
+python harness_pipeline_migration.py \
+  --source-url https://app.harness.io \
+  --source-api-key sat.xxxxx.xxxxx.xxxxx \
+  --source-org source_org \
+  --source-project source_project \
+  --dest-url https://app3.harness.io \
+  --dest-api-key sat.yyyyy.yyyyy.yyyyy \
+  --dest-org dest_org \
+  --dest-project dest_project
 ```
 
 ### Keyboard Shortcuts
