@@ -592,3 +592,308 @@ class HarnessMigrator:
             time.sleep(0.3)
 
         return True
+
+    def migrate_pipelines(self) -> bool:
+        """Migrate pipelines from source to destination"""
+        logger.info("=" * 80)
+        logger.info("Starting pipeline migration...")
+
+        # Check if in dry run mode
+        dry_run = self.config.get('dry_run', False)
+        if dry_run:
+            logger.info(
+                "DRY RUN MODE: Simulating migration, no changes will be made")
+
+        # List pipelines from source
+        endpoint = (
+            f"/v1/orgs/{self.source_org}/projects/{self.source_project}/"
+            f"pipelines")
+        pipelines_response = self.source_client.get(endpoint)
+
+        if pipelines_response is None:
+            logger.error("Failed to retrieve pipelines from source")
+            return False
+
+        # Handle both direct array format and wrapped content format
+        if isinstance(pipelines_response, list):
+            all_pipelines = pipelines_response
+        elif 'content' in pipelines_response:
+            all_pipelines = pipelines_response.get('content', [])
+        else:
+            logger.error(
+                "Unexpected response format when retrieving pipelines")
+            return False
+
+        # Filter to selected pipelines if specified
+        selected_pipelines = self.config.get('pipelines', [])
+        if selected_pipelines:
+            # Extract identifiers from selected pipeline objects
+            selected_ids = [p.get('identifier') for p in selected_pipelines]
+            pipelines = [p for p in all_pipelines if p.get(
+                'identifier') in selected_ids]
+            logger.info(
+                "Migrating %d selected pipeline(s) out of %d total",
+                len(pipelines), len(all_pipelines))
+        else:
+            pipelines = all_pipelines
+            logger.info("Found %d pipelines to migrate", len(pipelines))
+
+        if not pipelines:
+            logger.info(
+                "No pipelines to migrate - skipping pipeline migration")
+            return True
+
+        for pipeline in pipelines:
+            pipeline_id = pipeline.get('identifier')
+            pipeline_name = pipeline.get('name', pipeline_id)
+
+            logger.info(
+                "\nMigrating pipeline: %s (%s)", pipeline_name, pipeline_id)
+
+            # Get full pipeline details from source
+            # We need the complete pipeline definition, not just summary
+            get_endpoint = (
+                f"/v1/orgs/{self.source_org}/"
+                f"projects/{self.source_project}/"
+                f"pipelines/{pipeline_id}")
+
+            # Add query parameter to get full YAML
+            pipeline_response = self.source_client.get(
+                get_endpoint, params={'getDefaultFromOtherRepo': 'false'})
+
+            if not pipeline_response:
+                logger.warning(
+                    "Could not fetch pipeline details, "
+                    "trying to use list data: %s", pipeline_id)
+                # Fallback to list data if available
+                pipeline_response = pipeline
+
+            # Log the response structure for debugging
+            logger.debug(
+                "Pipeline GET response keys: %s",
+                list(pipeline_response.keys()) if isinstance(
+                    pipeline_response, dict) else type(pipeline_response))
+
+            # Extract the pipeline object from response
+            if isinstance(pipeline_response, dict):
+                # Filter out read-only/metadata fields that shouldn't be sent
+                # Only keep fields needed for pipeline creation
+                pipeline_details = {}
+
+                # Essential fields for pipeline creation
+                essential_fields = [
+                    'identifier', 'name', 'description', 'tags',
+                    'pipeline_yaml', 'yaml_pipeline'
+                ]
+
+                for field in essential_fields:
+                    if field in pipeline_response:
+                        pipeline_details[field] = pipeline_response[field]
+
+                # If no YAML field found, log error
+                if ('pipeline_yaml' not in pipeline_details and
+                        'yaml_pipeline' not in pipeline_details):
+                    logger.error(
+                        "Pipeline has no YAML content: %s. Available keys: %s",
+                        pipeline_id, list(pipeline_response.keys()))
+                    self.migration_stats['pipelines']['failed'] += 1
+                    continue
+            else:
+                logger.error(
+                    "Invalid pipeline response format for: %s", pipeline_id)
+                self.migration_stats['pipelines']['failed'] += 1
+                continue
+
+            # Extract template references from pipeline YAML
+            yaml_content = pipeline_details.get(
+                'pipeline_yaml',
+                pipeline_details.get('yaml_pipeline', ''))
+            missing_templates = []
+            if yaml_content:
+                templates = self.extract_template_refs(yaml_content)
+                if templates:
+                    logger.info(
+                        "  Found %d template reference(s) in pipeline",
+                        len(templates))
+
+                    # Check which templates are missing in destination
+                    for template_ref, version_label in templates:
+                        exists = self.check_template_exists(
+                            template_ref, version_label)
+                        if not exists:
+                            missing_templates.append(
+                                (template_ref, version_label))
+                            logger.warning(
+                                "  ⚠ Template '%s' (v%s) not found in dest",
+                                template_ref, version_label)
+                        else:
+                            logger.info(
+                                "  ✓ Template '%s' (v%s) exists in dest",
+                                template_ref, version_label)
+
+                    # If templates are missing, try to migrate them
+                    if missing_templates and not dry_run:
+                        # Check if auto_migrate_templates is enabled
+                        auto_migrate = self.config.get(
+                            'options', {}).get('auto_migrate_templates',
+                                               False)
+                        interactive = not self.config.get(
+                            'non_interactive', False)
+
+                        if auto_migrate or interactive:
+                            template_list = "\n".join([
+                                f"  • {ref} (version: {ver})"
+                                for ref, ver in missing_templates
+                            ])
+
+                            # In interactive mode, ask what to do
+                            if interactive and not auto_migrate:
+                                from prompt_toolkit.shortcuts import (  # noqa: F401, E501
+                                    button_dialog)
+
+                                text = (
+                                    f"Pipeline '{pipeline_name}' requires "
+                                    f"templates that\ndon't exist in the "
+                                    f"destination:\n\n{template_list}\n\n"
+                                    f"Do you want to automatically migrate "
+                                    f"these templates?")
+
+                                choice = button_dialog(
+                                    title="Missing Templates",
+                                    text=text,
+                                    buttons=[
+                                        ('migrate', 'Migrate Templates'),
+                                        ('skip_templates',
+                                         'Continue Without Templates'),
+                                        ('skip', 'Skip This Pipeline')
+                                    ]
+                                ).run()
+
+                                if choice == 'skip':
+                                    logger.info(
+                                        "  ⊘ Skipping pipeline due to "
+                                        "missing templates")
+                                    self.migration_stats['pipelines'][
+                                        'failed'] += 1
+                                    continue
+                                elif choice == 'migrate':
+                                    should_migrate = True
+                                else:
+                                    should_migrate = False
+                            else:
+                                # Auto-migrate enabled
+                                should_migrate = True
+                                logger.info(
+                                    "  → Attempting to auto-migrate "
+                                    "templates...")
+
+                            # Try to migrate the templates
+                            if should_migrate:
+                                for template_ref, version_label in (
+                                        missing_templates):
+                                    self.migrate_template(
+                                        template_ref, version_label)
+                        else:
+                            # In non-interactive mode without
+                            # auto-migrate, just warn
+                            logger.warning(
+                                "  ⚠ Pipeline requires %d template(s) "
+                                "that must be created manually",
+                                len(missing_templates))
+
+            # Check if pipeline already exists
+            dest_endpoint = (
+                f"/v1/orgs/{self.dest_org}/projects/{self.dest_project}/"
+                f"pipelines/{pipeline_id}")
+            existing = self.dest_client.get(dest_endpoint)
+
+            if existing:
+                if self.config.get('options', {}).get('skip_existing', True):
+                    logger.info(
+                        "Pipeline '%s' already exists. Skipping.", pipeline_id)
+                    continue
+                else:
+                    logger.info(
+                        "Pipeline '%s' exists. Updating...", pipeline_id)
+                    if dry_run:
+                        logger.info(
+                            "[DRY RUN] Would update pipeline '%s'", pipeline_name)  # noqa: E501
+                        result = True  # Simulate success
+                    else:
+                        result = self.dest_client.put(
+                            dest_endpoint, json=pipeline_details)
+            else:
+                # Create pipeline in destination
+                create_endpoint = (
+                    f"/v1/orgs/{self.dest_org}/projects/{self.dest_project}/"
+                    f"pipelines")
+                if dry_run:
+                    logger.info(
+                        "[DRY RUN] Would create pipeline '%s'", pipeline_name)
+                    result = True  # Simulate success
+                else:
+                    logger.info(
+                        "Creating pipeline with payload keys: %s",
+                        list(pipeline_details.keys()) if isinstance(
+                            pipeline_details, dict) else "not a dict")
+                    logger.debug("Pipeline payload: %s",
+                                 json.dumps(pipeline_details, indent=2)[:2000])
+
+                    # Update org and project identifiers in YAML
+                    if 'pipeline_yaml' in pipeline_details:
+                        yaml_content = pipeline_details['pipeline_yaml']
+
+                        # Replace source org/project with dest org/project
+                        yaml_content = yaml_content.replace(
+                            f'orgIdentifier: {self.source_org}',
+                            f'orgIdentifier: {self.dest_org}')
+                        yaml_content = yaml_content.replace(
+                            f'projectIdentifier: {self.source_project}',
+                            f'projectIdentifier: {self.dest_project}')
+
+                        logger.debug(
+                            "Updated identifiers: org=%s, project=%s",
+                            self.dest_org, self.dest_project)
+
+                        # Update the pipeline_details with corrected YAML
+                        pipeline_details['pipeline_yaml'] = yaml_content
+
+                    # The v1 API requires snake_case field name: pipeline_yaml
+                    # with identifier and name as separate fields
+                    yaml_content = pipeline_details.get('pipeline_yaml', '')
+                    payload = {
+                        'identifier': pipeline_id,
+                        'name': pipeline_name,
+                        'pipeline_yaml': yaml_content
+                    }
+
+                    # Add description and tags if present
+                    if pipeline_details.get('description'):
+                        payload['description'] = (
+                            pipeline_details['description'])
+                    if pipeline_details.get('tags'):
+                        payload['tags'] = pipeline_details['tags']
+
+                    logger.debug("Sending pipeline creation payload")
+                    logger.debug("Final payload YAML (first 500 chars): %s",
+                                 payload.get('pipeline_yaml', '')[:500])
+                    result = self.dest_client.post(
+                        create_endpoint, json=payload)
+                    if not result:
+                        logger.error(
+                            "Pipeline creation failed. Payload had keys: %s",
+                            list(pipeline_details.keys()))
+
+            if result:
+                self.migration_stats['pipelines']['success'] += 1
+
+                # Migrate associated input sets
+                if self.config.get('options', {}).get('migrate_input_sets', True):  # noqa: E501
+                    self.migrate_input_sets(pipeline_id)
+            else:
+                logger.error("✗ Failed to migrate pipeline: %s", pipeline_name)
+                self.migration_stats['pipelines']['failed'] += 1
+
+            time.sleep(0.5)
+
+        return True
