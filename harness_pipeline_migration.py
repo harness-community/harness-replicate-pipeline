@@ -710,10 +710,12 @@ class HarnessMigrator:
                     # If templates are missing, try to migrate them
                     if missing_templates and not dry_run:
                         # Check if auto_migrate_templates is enabled
-                        # Default to True for better user experience
+                        # Default to False to ask user first
                         auto_migrate = self.config.get(
                             'options', {}).get('auto_migrate_templates',
-                                               True)
+                                               False)
+                        # Check if we're in non-interactive mode
+                        # This can be set via --non-interactive flag or config
                         interactive = not self.config.get(
                             'non_interactive', False)
                         
@@ -732,16 +734,19 @@ class HarnessMigrator:
                                 f"Pipeline '{pipeline_name}' requires "
                                 f"templates that\ndon't exist in the "
                                 f"destination:\n\n{template_list}\n\n"
-                                f"Do you want to automatically migrate "
-                                f"these templates?")
+                                f"The script can automatically migrate these "
+                                f"templates from the source environment. "
+                                f"This will create the templates in the "
+                                f"destination before creating the pipeline.\n\n"
+                                f"Do you want to migrate these templates?")
 
                             choice = button_dialog(
                                 title="Missing Templates",
                                 text=text,
                                 buttons=[
-                                    ('migrate', 'Migrate Templates'),
+                                    ('migrate', 'Yes, Migrate Templates'),
                                     ('skip_templates',
-                                     'Continue Without Templates'),
+                                     'No, Continue Without Templates'),
                                     ('skip', 'Skip This Pipeline')
                                 ]
                             ).run()
@@ -764,9 +769,14 @@ class HarnessMigrator:
                         else:
                             # Auto-migrate enabled or non-interactive mode
                             should_migrate = True
-                            logger.info(
-                                "  → Auto-migrating %d missing template(s)...",
-                                len(missing_templates))
+                            if auto_migrate:
+                                logger.info(
+                                    "  → Auto-migrate enabled: migrating %d missing template(s)...",
+                                    len(missing_templates))
+                            else:
+                                logger.info(
+                                    "  → Non-interactive mode: migrating %d missing template(s)...",
+                                    len(missing_templates))
 
                         # Try to migrate the templates
                         if should_migrate:
@@ -1057,7 +1067,8 @@ def non_interactive_mode(config_file: str):
             'skip_existing': True
         }),
         'pipelines': base_config.get('selected_pipelines', []),
-        'dry_run': False
+        'dry_run': False,
+        'non_interactive': True
     }
 
     print(
