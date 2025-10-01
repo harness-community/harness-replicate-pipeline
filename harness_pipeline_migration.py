@@ -18,7 +18,7 @@ import re
 import sys
 import time
 from datetime import datetime
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import requests
 import yaml
@@ -49,6 +49,49 @@ def setup_logging(debug=False):
             logging.StreamHandler(sys.stdout),
         ],
     )
+
+
+def apply_cli_overrides(config: Dict[str, Any], args) -> Dict[str, Any]:
+    """Apply CLI argument overrides to config with priority: config file > CLI args > interactive"""
+    # Create a copy to avoid modifying the original
+    updated_config = config.copy()
+    
+    # Source configuration overrides
+    if args.source_url:
+        updated_config.setdefault("source", {})["base_url"] = args.source_url
+    if args.source_api_key:
+        updated_config.setdefault("source", {})["api_key"] = args.source_api_key
+    if args.source_org:
+        updated_config.setdefault("source", {})["org"] = args.source_org
+    if args.source_project:
+        updated_config.setdefault("source", {})["project"] = args.source_project
+    
+    # Destination configuration overrides
+    if args.dest_url:
+        updated_config.setdefault("destination", {})["base_url"] = args.dest_url
+    if args.dest_api_key:
+        updated_config.setdefault("destination", {})["api_key"] = args.dest_api_key
+    if args.dest_org:
+        updated_config.setdefault("destination", {})["org"] = args.dest_org
+    if args.dest_project:
+        updated_config.setdefault("destination", {})["project"] = args.dest_project
+    
+    # Migration options overrides
+    options = updated_config.setdefault("options", {})
+    
+    # Handle migrate_input_sets (CLI args override config)
+    if args.migrate_input_sets:
+        options["migrate_input_sets"] = True
+    elif args.no_migrate_input_sets:
+        options["migrate_input_sets"] = False
+    
+    # Handle skip_existing (CLI args override config)
+    if args.skip_existing:
+        options["skip_existing"] = True
+    elif args.no_skip_existing:
+        options["skip_existing"] = False
+    
+    return updated_config
 
 
 logger = logging.getLogger(__name__)
@@ -1833,6 +1876,23 @@ Usage Examples:
     # Debug mode for troubleshooting
     python harness_pipeline_migration.py --debug
 
+    # Override specific values via CLI
+    python harness_pipeline_migration.py --source-org my_org --dest-org target_org
+
+    # Override migration options
+    python harness_pipeline_migration.py --no-migrate-input-sets --no-skip-existing
+
+    # Full CLI configuration (minimal config file needed)
+    python harness_pipeline_migration.py \\
+        --source-url https://app.harness.io \\
+        --source-api-key sat.xxxxx.xxxxx.xxxxx \\
+        --source-org source_org \\
+        --source-project source_project \\
+        --dest-url https://app3.harness.io \\
+        --dest-api-key sat.yyyyy.yyyyy.yyyyy \\
+        --dest-org dest_org \\
+        --dest-project dest_project
+
 Configuration File Format (supports JSONC with comments):
 {
   "source": {
@@ -1878,6 +1938,72 @@ Configuration File Format (supports JSONC with comments):
         help="Skip prompts and use all values from config file (no dialogs)",
     )
 
+    # Source configuration arguments
+    parser.add_argument(
+        "--source-url",
+        type=str,
+        help="Source Harness base URL (e.g., https://app.harness.io)",
+    )
+    parser.add_argument(
+        "--source-api-key",
+        type=str,
+        help="Source Harness API key (starts with 'sat.')",
+    )
+    parser.add_argument(
+        "--source-org",
+        type=str,
+        help="Source organization identifier",
+    )
+    parser.add_argument(
+        "--source-project",
+        type=str,
+        help="Source project identifier",
+    )
+
+    # Destination configuration arguments
+    parser.add_argument(
+        "--dest-url",
+        type=str,
+        help="Destination Harness base URL (e.g., https://app3.harness.io)",
+    )
+    parser.add_argument(
+        "--dest-api-key",
+        type=str,
+        help="Destination Harness API key (starts with 'sat.')",
+    )
+    parser.add_argument(
+        "--dest-org",
+        type=str,
+        help="Destination organization identifier",
+    )
+    parser.add_argument(
+        "--dest-project",
+        type=str,
+        help="Destination project identifier",
+    )
+
+    # Migration options
+    parser.add_argument(
+        "--migrate-input-sets",
+        action="store_true",
+        help="Migrate input sets with pipelines (default: true)",
+    )
+    parser.add_argument(
+        "--no-migrate-input-sets",
+        action="store_true",
+        help="Skip migrating input sets",
+    )
+    parser.add_argument(
+        "--skip-existing",
+        action="store_true",
+        help="Skip pipelines that already exist in destination (default: true)",
+    )
+    parser.add_argument(
+        "--no-skip-existing",
+        action="store_true",
+        help="Update/overwrite existing pipelines",
+    )
+
     args = parser.parse_args()
 
     # Setup logging with debug level if requested
@@ -1889,6 +2015,9 @@ Configuration File Format (supports JSONC with comments):
     else:
         # Use hybrid mode with interactive prompts
         config = hybrid_mode(args.config)
+
+    # Apply CLI argument overrides (priority: config file > CLI args > interactive)
+    config = apply_cli_overrides(config, args)
 
     # Run migration
     migrator = HarnessMigrator(config)
