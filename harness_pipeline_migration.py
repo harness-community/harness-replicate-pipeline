@@ -194,10 +194,15 @@ class HarnessMigrator:
     def _find_template_refs(self, obj, templates):
         """Recursively find template references in YAML structure"""
         if isinstance(obj, dict):
-            # Check if this dict has both templateRef and versionLabel
-            if 'templateRef' in obj and 'versionLabel' in obj:
+            # Check if this dict has templateRef (versionLabel is optional)
+            if 'templateRef' in obj:
                 template_ref = obj['templateRef']
-                version_label = str(obj['versionLabel'])
+                # versionLabel can be empty/missing to indicate stable version
+                version_label = obj.get('versionLabel', '')
+                if version_label is None:
+                    version_label = ''
+                else:
+                    version_label = str(version_label)
                 templates.append((template_ref, version_label))
                 self.discovered_templates.add((template_ref, version_label))
             # Recurse into dict values
@@ -246,7 +251,7 @@ class HarnessMigrator:
 
         Args:
             template_ref: Template identifier
-            version_label: Template version
+            version_label: Template version (empty string = stable version)
             org: Organization identifier
             project: Project identifier
             client: API client to use (defaults to source_client)
@@ -257,11 +262,19 @@ class HarnessMigrator:
         if client is None:
             client = self.source_client
 
-        endpoint = (
-            f"/v1/orgs/{org}/"
-            f"projects/{project}/"
-            f"templates/{template_ref}/"
-            f"versions/{version_label}")
+        # Empty version label means "use stable version"
+        if version_label:
+            endpoint = (
+                f"/v1/orgs/{org}/"
+                f"projects/{project}/"
+                f"templates/{template_ref}/"
+                f"versions/{version_label}")
+        else:
+            # Get stable version (no version specified)
+            endpoint = (
+                f"/v1/orgs/{org}/"
+                f"projects/{project}/"
+                f"templates/{template_ref}")
 
         return client.get(endpoint)
     
@@ -317,21 +330,16 @@ class HarnessMigrator:
 
         Args:
             template_ref: Template identifier
-            version_label: Template version
+            version_label: Template version (empty string = stable version)
 
         Returns:
             True if successful, False otherwise
         """
+        version_display = version_label if version_label else "stable"
         logger.info(
-            "  Migrating template: %s (v%s)", template_ref, version_label)
+            "  Migrating template: %s (v%s)", template_ref, version_display)
 
-        # Check if already exists in destination
-        if self.check_template_exists(template_ref, version_label):
-            logger.info(
-                "  ✓ Template already exists in destination, skipping")
-            return True
-
-        # Get template from source
+        # Get template from source (empty version = get stable)
         source_template = self.get_template(
             template_ref, version_label,
             self.source_org, self.source_project,
@@ -340,6 +348,22 @@ class HarnessMigrator:
         if not source_template:
             logger.error("  ✗ Failed to get template from source")
             return False
+
+        # If we requested stable (empty version), get the actual version from response
+        # When creating a template, we need to specify the actual version
+        actual_version = source_template.get('version_label', 
+                                             source_template.get('versionLabel', ''))
+        if not actual_version:
+            logger.error("  ✗ Could not determine template version from source")
+            return False
+        
+        logger.debug(f"  Actual template version: {actual_version}")
+
+        # Check if already exists in destination (with actual version)
+        if self.check_template_exists(template_ref, actual_version):
+            logger.info(
+                "  ✓ Template already exists in destination, skipping")
+            return True
 
         # Extract YAML and update org/project identifiers
         template_yaml = source_template.get('yaml', '')
@@ -355,10 +379,13 @@ class HarnessMigrator:
                     self.dest_org)
                 template_dict['template']['projectIdentifier'] = (
                     self.dest_project)
+                # Ensure version is set in YAML
+                template_dict['template']['versionLabel'] = actual_version
             else:
                 # Sometimes the YAML might not have the 'template' wrapper
                 template_dict['orgIdentifier'] = self.dest_org
                 template_dict['projectIdentifier'] = self.dest_project
+                template_dict['versionLabel'] = actual_version
 
             # Convert back to YAML
             updated_yaml = yaml.dump(
@@ -367,7 +394,7 @@ class HarnessMigrator:
             logger.error("  ✗ Failed to update template YAML: %s", e)
             return False
 
-        # Create in destination
+        # Create in destination with actual version
         result = self.create_template(
             updated_yaml,
             is_stable=source_template.get('stable_template', True),
