@@ -1,0 +1,71 @@
+{
+  "name": "Harness Migration Toolkit",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11-bullseye",
+  
+  // Configure tool-specific properties
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.autopep8",
+        "ms-python.flake8",
+        "ms-python.pylint",
+        "ms-vscode.vscode-json",
+        "redhat.vscode-yaml",
+        "ms-vscode.makefile-tools",
+        "formulahendry.code-runner"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python3",
+        "python.formatting.provider": "autopep8",
+        "python.linting.enabled": true,
+        "python.linting.pylintEnabled": true,
+        "python.terminal.activateEnvironment": false,
+        "files.associations": {
+          "*.json": "jsonc"
+        }
+      }
+    }
+  },
+
+  // Features to add to the dev container
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+
+  // Use 'forwardPorts' to make a list of ports inside the container available locally
+  // This is useful if your application runs a local server
+  // "forwardPorts": [],
+
+  // Use 'postCreateCommand' to run commands after the container is created
+  "postCreateCommand": "pip install --user -r requirements.txt && chmod +x setup.sh",
+
+  // Configure shell for interactive use
+  "postStartCommand": "echo 'Harness Migration Toolkit Dev Container Ready! 🚀'",
+
+  // Keep the container running for interactive mode
+  "shutdownAction": "none",
+
+  // Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root
+  "remoteUser": "vscode",
+
+  // Mount the workspace
+  "workspaceFolder": "/workspaces/harness_migration_toolkit",
+  "mounts": [
+    "source=${localWorkspaceFolder},target=/workspaces/harness_migration_toolkit,type=bind"
+  ],
+
+  // Environment variables
+  "containerEnv": {
+    "PYTHONUNBUFFERED": "1",
+    "PYTHONIOENCODING": "UTF-8"
+  },
+
+  // Add capabilities needed for the container
+  "runArgs": [
+    "--cap-add=SYS_PTRACE",
+    "--security-opt",
+    "seccomp=unconfined"
+  ]
+}
