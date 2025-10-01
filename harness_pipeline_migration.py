@@ -1013,3 +1013,343 @@ def non_interactive_mode(config_file: str):
     print(f"Pipelines: {len(config['pipelines'])}")
 
     return config
+
+
+def hybrid_mode(config_file: str):
+    """Hybrid mode: use config file values and prompt for missing fields"""
+    print("\n" + "=" * 80)
+    print("HARNESS PIPELINE MIGRATION")
+    print("=" * 80)
+    print(
+        "Using config file values where available, "
+        "prompting for missing fields")
+
+    # Load base config
+    base_config = load_config(config_file)
+
+    # Initialize clients with config values
+    source_url = base_config.get('source', {}).get('base_url')
+    source_api_key = base_config.get('source', {}).get('api_key')
+    dest_url = base_config.get('destination', {}).get('base_url')
+    dest_api_key = base_config.get('destination', {}).get('api_key')
+
+    # Prompt for missing credentials
+    if not source_url:
+        source_subdomain = radiolist_dialog(
+            title="Source Account",
+            text="Select source Harness subdomain:",
+            values=[("app", "app.harness.io"), ("app3", "app3.harness.io")]
+        ).run()
+        if not source_subdomain:
+            print("❌ Selection cancelled")
+            sys.exit(1)
+        source_url = f"https://{source_subdomain}.harness.io"
+    else:
+        print(f"✓ Using source URL from config: {source_url}")
+
+    if not source_api_key:
+        source_api_key = prompt("Source API Key: ", is_password=True).strip()
+        if not source_api_key:
+            print("❌ Error: Source API key is required")
+            sys.exit(1)
+    else:
+        print("✓ Using source API key from config")
+
+    if not dest_url:
+        dest_subdomain = radiolist_dialog(
+            title="Destination Account",
+            text="Select destination Harness subdomain:",
+            values=[("app", "app.harness.io"), ("app3", "app3.harness.io")]
+        ).run()
+        if not dest_subdomain:
+            print("❌ Selection cancelled")
+            sys.exit(1)
+        dest_url = f"https://{dest_subdomain}.harness.io"
+    else:
+        print(f"✓ Using destination URL from config: {dest_url}")
+
+    if not dest_api_key:
+        dest_api_key = prompt("Destination API Key: ",
+                              is_password=True).strip()
+        if not dest_api_key:
+            print("❌ Error: Destination API key is required")
+            sys.exit(1)
+    else:
+        print("✓ Using destination API key from config")
+
+    # Create clients
+    source_client = HarnessAPIClient(source_url, source_api_key)
+    dest_client = HarnessAPIClient(dest_url, dest_api_key)
+
+    # Get organization and project selections
+    return _get_selections_from_clients(
+        source_client, dest_client, base_config, config_file)
+
+
+def _get_selections_from_clients(source_client, dest_client, base_config,
+                                 config_file):
+    """Common logic for getting selections from clients"""
+    # Initialize variables
+    selected_pipelines = []
+
+    # Select source organization
+    print("\n" + "=" * 80)
+    print("📂 SELECT SOURCE ORGANIZATION")
+    print("=" * 80)
+
+    # Check if already configured
+    pre_selected_org = base_config.get('source', {}).get('org')
+    if pre_selected_org:
+        print(f"ℹ️  Previously selected: {pre_selected_org}")
+        use_previous = yes_no_dialog(
+            title="Use Previous Source Organization?",
+            text=(f"Use previously selected SOURCE organization:\n"
+                  f"  {pre_selected_org}?")
+        ).run()
+
+        if use_previous:
+            source_org = pre_selected_org
+            print(f"✓ Using: {source_org}")
+        else:
+            source_org = select_organization(source_client, "source")
+            if not source_org:
+                print("❌ Selection cancelled")
+                sys.exit(1)
+    else:
+        source_org = select_organization(source_client, "source")
+        if not source_org:
+            print("❌ Selection cancelled")
+            sys.exit(1)
+
+    # Select source project
+    print("\n" + "=" * 80)
+    print("📁 SELECT SOURCE PROJECT")
+    print("=" * 80)
+
+    # Check if already configured
+    pre_selected_project = base_config.get('source', {}).get('project')
+    if pre_selected_project:
+        print(f"ℹ️  Previously selected: {pre_selected_project}")
+        use_previous = yes_no_dialog(
+            title="Use Previous Source Project?",
+            text=(f"Use previously selected SOURCE project:\n"
+                  f"  {pre_selected_project}?")
+        ).run()
+
+        if use_previous:
+            source_project = pre_selected_project
+            print(f"✓ Using: {source_project}")
+        else:
+            source_project = select_project(
+                source_client, source_org, "source")
+            if not source_project:
+                print("❌ Selection cancelled")
+                sys.exit(1)
+    else:
+        source_project = select_project(source_client, source_org, "source")
+        if not source_project:
+            print("❌ Selection cancelled")
+            sys.exit(1)
+
+    # Select pipelines
+    print("\n" + "=" * 80)
+    print("🔧 SELECT PIPELINES TO MIGRATE")
+    print("=" * 80)
+
+    # Check if already configured
+    pre_selected_pipelines = base_config.get('selected_pipelines', [])
+    if pre_selected_pipelines:
+        print(
+            f"ℹ️  Previously selected "
+            f"{len(pre_selected_pipelines)} pipeline(s):")
+        for p in pre_selected_pipelines[:5]:  # Show first 5
+            print(f"   - {p.get('name', p.get('identifier'))}")
+        if len(pre_selected_pipelines) > 5:
+            print(f"   ... and {len(pre_selected_pipelines) - 5} more")
+
+        use_previous = yes_no_dialog(
+            title="Use Previous Pipeline Selection?",
+            text=(f"Use previously selected "
+                  f"{len(pre_selected_pipelines)} SOURCE pipeline(s)?")
+        ).run()
+
+        if use_previous:
+            # Fetch full pipeline objects for the pre-selected identifiers
+            endpoint = (
+                f"/v1/orgs/{source_org}/projects/{source_project}/pipelines")
+            all_pipelines_response = source_client.get(endpoint)
+
+            if all_pipelines_response:
+                if isinstance(all_pipelines_response, list):
+                    all_pipes = all_pipelines_response
+                elif 'content' in all_pipelines_response:
+                    all_pipes = all_pipelines_response.get('content', [])
+                else:
+                    all_pipes = []
+
+                # Get identifiers from pre-selected
+                pre_ids = [p.get('identifier') for p in pre_selected_pipelines]
+                # Match with full objects
+                selected_pipelines = [
+                    p for p in all_pipes if p.get('identifier') in pre_ids]
+                print(
+                    f"✓ Using {len(selected_pipelines)} "
+                    f"previously selected pipeline(s)")
+            else:
+                print("⚠️  Could not fetch pipelines, re-selecting...")
+                selected_pipelines = select_pipelines(
+                    source_client, source_org, source_project)
+        else:
+            selected_pipelines = select_pipelines(
+                source_client, source_org, source_project)
+    else:
+        print("Use Space to select/deselect, Enter to confirm, Esc to cancel")
+        selected_pipelines = select_pipelines(
+            source_client, source_org, source_project)
+
+    if selected_pipelines is None:
+        print("❌ Migration cancelled")
+        sys.exit(1)
+    elif selected_pipelines == 'ERROR':
+        print("⚠️  Error occurred")
+        sys.exit(1)
+    elif not selected_pipelines or selected_pipelines == 'BACK_TO_PROJECTS':
+        print("⚠️  No pipelines selected - continuing with empty selection")
+        selected_pipelines = []
+
+    # Select/create destination organization
+    print("\n" + "=" * 80)
+    print("📂 SELECT DESTINATION ORGANIZATION")
+    print("=" * 80)
+
+    # Track if org was just created
+    org_just_created = False
+
+    # Check if already configured
+    pre_selected_dest_org = base_config.get('destination', {}).get('org')
+    if pre_selected_dest_org:
+        print(f"ℹ️  Previously selected: {pre_selected_dest_org}")
+        use_previous = yes_no_dialog(
+            title="Use Previous Destination Organization?",
+            text=(f"Use previously selected DESTINATION organization:\n"
+                  f"  {pre_selected_dest_org}?")
+        ).run()
+
+        if use_previous:
+            dest_org = pre_selected_dest_org
+            print(f"✓ Using: {dest_org}")
+        else:
+            result = select_or_create_organization(
+                dest_client, source_org, "destination")
+            if not result:
+                print("❌ Selection cancelled")
+                sys.exit(1)
+            dest_org, org_just_created = result
+    else:
+        result = select_or_create_organization(
+            dest_client, source_org, "destination")
+        if not result:
+            print("❌ Selection cancelled")
+            sys.exit(1)
+        dest_org, org_just_created = result
+
+    # Select/create destination project
+    print("\n" + "=" * 80)
+    print("📁 SELECT DESTINATION PROJECT")
+    print("=" * 80)
+
+    # If org was just created, skip to project creation
+    if org_just_created:
+        print(
+            f"ℹ️  Organization '{dest_org}' was just created - "
+            f"it has no projects yet")
+        dest_project = select_or_create_project(
+            dest_client, dest_org, source_project, "destination",
+            force_create=True)
+        if not dest_project:
+            print("❌ Selection cancelled")
+            sys.exit(1)
+    else:
+        # Check if already configured
+        pre_selected_dest_project = base_config.get(
+            'destination', {}).get('project')
+        if pre_selected_dest_project:
+            print(f"ℹ️  Previously selected: {pre_selected_dest_project}")
+            use_previous = yes_no_dialog(
+                title="Use Previous Destination Project?",
+                text=(f"Use previously selected DESTINATION project:\n"
+                      f"  {pre_selected_dest_project}?")
+            ).run()
+
+            if use_previous:
+                dest_project = pre_selected_dest_project
+                print(f"✓ Using: {dest_project}")
+            else:
+                dest_project = select_or_create_project(
+                    dest_client, dest_org, source_project, "destination")
+                if not dest_project:
+                    print("❌ Selection cancelled")
+                    sys.exit(1)
+        else:
+            dest_project = select_or_create_project(
+                dest_client, dest_org, source_project, "destination")
+            if not dest_project:
+                print("❌ Selection cancelled")
+                sys.exit(1)
+
+    # Migration options
+    print("\n" + "=" * 80)
+    print("⚙️  MIGRATION OPTIONS")
+    print("=" * 80)
+
+    # Use config options or prompt for them
+    migrate_input_sets = base_config.get(
+        'options', {}).get('migrate_input_sets', True)
+    skip_existing = base_config.get('options', {}).get('skip_existing', True)
+
+    # Ask about dry run
+    dry_run = yes_no_dialog(
+        title="Dry Run",
+        text="Do you want to run in dry-run mode? (No changes will be made)"
+    ).run()
+
+    # Build final config
+    config = {
+        'source': {
+            'base_url': source_client.base_url,
+            'api_key': source_client.api_key,
+            'org': source_org,
+            'project': source_project
+        },
+        'destination': {
+            'base_url': dest_client.base_url,
+            'api_key': dest_client.api_key,
+            'org': dest_org,
+            'project': dest_project
+        },
+        'options': {
+            'migrate_input_sets': migrate_input_sets,
+            'skip_existing': skip_existing
+        },
+        'pipelines': selected_pipelines if selected_pipelines else [],
+        'dry_run': dry_run
+    }
+
+    # Ask if user wants to save the configuration
+    print("\n" + "=" * 80)
+    save_choice = yes_no_dialog(
+        title="Save Configuration",
+        text=(
+            "Do you want to save these selections to the config file?\n\n"
+            "This will allow you to quickly re-run with the same settings\n"
+            "next time (useful for troubleshooting)."
+        )
+    ).run()
+
+    if save_choice:
+        if save_config(config, config_file):
+            print(f"✓ Configuration saved to {config_file}")
+        else:
+            print(f"✗ Failed to save configuration to {config_file}")
+
+    return config
