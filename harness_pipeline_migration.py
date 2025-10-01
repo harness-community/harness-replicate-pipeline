@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-# pylint: disable=too-many-lines
+# pylint: disable=too-many-lines,line-too-long
+# flake8: noqa: E501
 """
 Harness Pipeline Migration Script
 
@@ -25,8 +26,11 @@ import yaml
 # For interactive mode with arrow key navigation
 from prompt_toolkit import prompt
 from prompt_toolkit.shortcuts import (
-    radiolist_dialog, checkboxlist_dialog, button_dialog, message_dialog,
-    yes_no_dialog
+    radiolist_dialog,
+    checkboxlist_dialog,
+    button_dialog,
+    message_dialog,
+    yes_no_dialog,
 )
 
 # Configure logging
@@ -37,12 +41,13 @@ def setup_logging(debug=False):
     level = logging.DEBUG if debug else logging.INFO
     logging.basicConfig(
         level=level,
-        format='%(asctime)s - %(levelname)s - %(message)s',
+        format="%(asctime)s - %(levelname)s - %(message)s",
         handlers=[
             logging.FileHandler(
-                f'migration_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'),
-            logging.StreamHandler(sys.stdout)
-        ]
+                f'migration_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
+            ),
+            logging.StreamHandler(sys.stdout),
+        ],
     )
 
 
@@ -54,60 +59,58 @@ class HarnessAPIClient:
 
     def __init__(self, base_url: str, api_key: str):
         # Harness API uses direct base URL with /v1 endpoints
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self.api_key = api_key
-        self.headers = {
-            'x-api-key': api_key,
-            'Content-Type': 'application/json'
-        }
+        self.headers = {"x-api-key": api_key, "Content-Type": "application/json"}
         self.session = requests.Session()
         self.session.headers.update(self.headers)
 
-    def _make_request(self, method: str, endpoint: str, **kwargs) -> Optional[Dict]:  # noqa: E501
+    def _make_request(
+        self, method: str, endpoint: str, **kwargs
+    ) -> Optional[Dict]:  # noqa: E501
         """Make HTTP request with error handling"""
         url = f"{self.base_url}{endpoint}"
 
         # Log the request for debugging
         logger.debug("Making %s request to: %s", method, url)
-        if 'headers' in kwargs:
-            logger.debug("Custom headers: %s", kwargs['headers'])
-        if 'data' in kwargs:
+        if "headers" in kwargs:
+            logger.debug("Custom headers: %s", kwargs["headers"])
+        if "data" in kwargs:
             logger.debug("Sending raw data (not JSON)")
 
         try:
-            response = self.session.request(
-                method, url, **kwargs)
-            
+            response = self.session.request(method, url, **kwargs)
+
             # Check for error status codes before parsing
             if not response.ok:
                 status_code = response.status_code
-                
+
                 if status_code == 404:
                     # 404s are often expected (checking if resource exists)
                     logger.debug("Resource not found (404): %s", url)
                     return None
-                
+
                 # For other errors, log at ERROR level
                 logger.error("API Error: %s %s", status_code, response.reason)
                 logger.error("Status: %s", status_code)
                 logger.error("URL: %s", url)
                 logger.error("Response Text: %s", response.text[:2000])
-                
+
                 if status_code == 400:
                     logger.error("Bad Request - check the request payload format")
                     # Try to parse and log the error details
                     try:
                         error_details = response.json()
                         logger.error(
-                            "Error details: %s",
-                            json.dumps(error_details, indent=2))
+                            "Error details: %s", json.dumps(error_details, indent=2)
+                        )
                     except (json.JSONDecodeError, ValueError):
                         logger.error("Could not parse error response as JSON")
                 elif status_code == 401:
                     logger.error("Authentication failed - check your API key")
                 elif status_code == 403:
                     logger.error("Access denied - check API key permissions")
-                
+
                 return None
 
             if response.status_code == 204:
@@ -118,27 +121,29 @@ class HarnessAPIClient:
         except requests.exceptions.HTTPError as e:
             logger.error("HTTP Error: %s", e)
             return None
-        except (requests.exceptions.RequestException,
-                requests.exceptions.ConnectionError,
-                requests.exceptions.Timeout) as e:
+        except (
+            requests.exceptions.RequestException,
+            requests.exceptions.ConnectionError,
+            requests.exceptions.Timeout,
+        ) as e:
             logger.error("Request failed: %s", e)
             return None
 
     def get(self, endpoint: str, **kwargs) -> Optional[Dict]:
         """GET request"""
-        return self._make_request('GET', endpoint, **kwargs)
+        return self._make_request("GET", endpoint, **kwargs)
 
     def post(self, endpoint: str, **kwargs) -> Optional[Dict]:
         """POST request"""
-        return self._make_request('POST', endpoint, **kwargs)
+        return self._make_request("POST", endpoint, **kwargs)
 
     def put(self, endpoint: str, **kwargs) -> Optional[Dict]:
         """PUT request"""
-        return self._make_request('PUT', endpoint, **kwargs)
+        return self._make_request("PUT", endpoint, **kwargs)
 
     def delete(self, endpoint: str, **kwargs) -> Optional[Dict]:
         """DELETE request"""
-        return self._make_request('DELETE', endpoint, **kwargs)
+        return self._make_request("DELETE", endpoint, **kwargs)
 
 
 class HarnessMigrator:
@@ -147,33 +152,31 @@ class HarnessMigrator:
     def __init__(self, config: Dict):
         self.config = config
         self.source_client = HarnessAPIClient(
-            config['source']['base_url'],
-            config['source']['api_key']
+            config["source"]["base_url"], config["source"]["api_key"]
         )
         self.dest_client = HarnessAPIClient(
-            config['destination']['base_url'],
-            config['destination']['api_key']
+            config["destination"]["base_url"], config["destination"]["api_key"]
         )
 
-        self.source_org = config['source']['org']
-        self.source_project = config['source']['project']
-        self.dest_org = config['destination']['org']
-        self.dest_project = config['destination']['project']
+        self.source_org = config["source"]["org"]
+        self.source_project = config["source"]["project"]
+        self.dest_org = config["destination"]["org"]
+        self.dest_project = config["destination"]["project"]
 
         self.migration_stats = {
-            'pipelines': {'success': 0, 'failed': 0},
-            'input_sets': {'success': 0, 'failed': 0},
-            'templates': {'success': 0, 'failed': 0}
+            "pipelines": {"success": 0, "failed": 0},
+            "input_sets": {"success": 0, "failed": 0},
+            "templates": {"success": 0, "failed": 0},
         }
         self.discovered_templates = set()  # Track templates found in pipelines
 
     def extract_template_refs(self, yaml_content: str) -> List[tuple]:
         """Extract template references from pipeline YAML
-        
+
         Returns list of tuples: (templateRef, versionLabel)
         """
         templates = []
-        
+
         # Parse YAML to find template references
         # Template refs can appear at various levels in the YAML structure
         try:
@@ -188,19 +191,19 @@ class HarnessMigrator:
             for template_ref, version_label in matches:
                 templates.append((template_ref, version_label))
                 self.discovered_templates.add((template_ref, version_label))
-        
+
         return templates
-    
+
     def _find_template_refs(self, obj, templates):
         """Recursively find template references in YAML structure"""
         if isinstance(obj, dict):
             # Check if this dict has templateRef (versionLabel is optional)
-            if 'templateRef' in obj:
-                template_ref = obj['templateRef']
+            if "templateRef" in obj:
+                template_ref = obj["templateRef"]
                 # versionLabel can be empty/missing to indicate stable version
-                version_label = obj.get('versionLabel', '')
+                version_label = obj.get("versionLabel", "")
                 if version_label is None:
-                    version_label = ''
+                    version_label = ""
                 else:
                     version_label = str(version_label)
                 templates.append((template_ref, version_label))
@@ -214,8 +217,8 @@ class HarnessMigrator:
                 self._find_template_refs(item, templates)
 
     def list_templates(
-            self, org: str, project: str,
-            client: Optional[HarnessAPIClient] = None) -> List[Dict]:
+        self, org: str, project: str, client: Optional[HarnessAPIClient] = None
+    ) -> List[Dict]:
         """List all templates in a project
 
         Args:
@@ -238,15 +241,19 @@ class HarnessMigrator:
         # Handle both direct array format and wrapped content format
         if isinstance(response, list):
             return response
-        elif 'content' in response:
-            return response.get('content', [])
+        elif "content" in response:
+            return response.get("content", [])
         else:
             return []
 
     def get_template(
-            self, template_ref: str, version_label: str,
-            org: str, project: str,
-            client: Optional[HarnessAPIClient] = None) -> Optional[Dict]:
+        self,
+        template_ref: str,
+        version_label: str,
+        org: str,
+        project: str,
+        client: Optional[HarnessAPIClient] = None,
+    ) -> Optional[Dict]:
         """Get template details including YAML
 
         Args:
@@ -268,18 +275,17 @@ class HarnessMigrator:
                 f"/v1/orgs/{org}/"
                 f"projects/{project}/"
                 f"templates/{template_ref}/"
-                f"versions/{version_label}")
+                f"versions/{version_label}"
+            )
         else:
             # Get stable version (no version specified)
             endpoint = (
-                f"/v1/orgs/{org}/"
-                f"projects/{project}/"
-                f"templates/{template_ref}")
+                f"/v1/orgs/{org}/" f"projects/{project}/" f"templates/{template_ref}"
+            )
 
         return client.get(endpoint)
-    
-    def check_template_exists(
-            self, template_ref: str, version_label: str) -> bool:
+
+    def check_template_exists(self, template_ref: str, version_label: str) -> bool:
         """Check if a template exists in destination
 
         Args:
@@ -290,14 +296,20 @@ class HarnessMigrator:
             True if exists, False otherwise
         """
         dest_template = self.get_template(
-            template_ref, version_label,
-            self.dest_org, self.dest_project,
-            self.dest_client)
+            template_ref,
+            version_label,
+            self.dest_org,
+            self.dest_project,
+            self.dest_client,
+        )
         return dest_template is not None
 
     def create_template(
-            self, template_yaml: str, is_stable: bool = True,
-            comments: str = "Migrated template") -> Optional[Dict]:
+        self,
+        template_yaml: str,
+        is_stable: bool = True,
+        comments: str = "Migrated template",
+    ) -> Optional[Dict]:
         """Create a template in destination
 
         NOTE: The template_yaml MUST include orgIdentifier and
@@ -312,20 +324,18 @@ class HarnessMigrator:
             Created template response, or None if failed
         """
         endpoint = (
-            f"/v1/orgs/{self.dest_org}/"
-            f"projects/{self.dest_project}/"
-            f"templates")
+            f"/v1/orgs/{self.dest_org}/" f"projects/{self.dest_project}/" f"templates"
+        )
 
         payload = {
-            'template_yaml': template_yaml,
-            'is_stable': is_stable,
-            'comments': comments
+            "template_yaml": template_yaml,
+            "is_stable": is_stable,
+            "comments": comments,
         }
 
         return self.dest_client.post(endpoint, json=payload)
-    
-    def migrate_template(
-            self, template_ref: str, version_label: str) -> bool:
+
+    def migrate_template(self, template_ref: str, version_label: str) -> bool:
         """Migrate a single template from source to destination
 
         Args:
@@ -336,42 +346,42 @@ class HarnessMigrator:
             True if successful, False otherwise
         """
         version_display = version_label if version_label else "stable"
-        logger.info(
-            "  Migrating template: %s (v%s)", template_ref, version_display)
+        logger.info("  Migrating template: %s (v%s)", template_ref, version_display)
 
         # Get template from source (empty version = get stable)
         source_template = self.get_template(
-            template_ref, version_label,
-            self.source_org, self.source_project,
-            self.source_client)
+            template_ref,
+            version_label,
+            self.source_org,
+            self.source_project,
+            self.source_client,
+        )
 
         if not source_template:
             logger.error("  ✗ Failed to get template from source")
             return False
 
-
         # If we requested stable (empty version), get the actual version from response
         # When creating a template, we need to specify the actual version
         # The version is nested under 'template' key
-        template_data = source_template.get('template', {})
-        actual_version = template_data.get('version_label', 
-                                          template_data.get('versionLabel', ''))
+        template_data = source_template.get("template", {})
+        actual_version = template_data.get(
+            "version_label", template_data.get("versionLabel", "")
+        )
         if not actual_version:
             logger.error("  ✗ Could not determine template version from source")
             logger.error(f"  ✗ Available fields: {list(source_template.keys())}")
             logger.error(f"  ✗ Template fields: {list(template_data.keys())}")
             return False
-        
 
         # Check if already exists in destination (with actual version)
         if self.check_template_exists(template_ref, actual_version):
-            logger.info(
-                "  ✓ Template already exists in destination, skipping")
+            logger.info("  ✓ Template already exists in destination, skipping")
             return True
 
         # Extract YAML and update org/project identifiers
         # YAML is also nested under 'template' key
-        template_yaml = template_data.get('yaml', '')
+        template_yaml = template_data.get("yaml", "")
         if not template_yaml:
             logger.error("  ✗ No YAML found in source template")
             return False
@@ -379,22 +389,21 @@ class HarnessMigrator:
         # Parse and update the YAML to use destination org/project
         try:
             template_dict = yaml.safe_load(template_yaml)
-            if 'template' in template_dict:
-                template_dict['template']['orgIdentifier'] = (
-                    self.dest_org)
-                template_dict['template']['projectIdentifier'] = (
-                    self.dest_project)
+            if "template" in template_dict:
+                template_dict["template"]["orgIdentifier"] = self.dest_org
+                template_dict["template"]["projectIdentifier"] = self.dest_project
                 # Ensure version is set in YAML
-                template_dict['template']['versionLabel'] = actual_version
+                template_dict["template"]["versionLabel"] = actual_version
             else:
                 # Sometimes the YAML might not have the 'template' wrapper
-                template_dict['orgIdentifier'] = self.dest_org
-                template_dict['projectIdentifier'] = self.dest_project
-                template_dict['versionLabel'] = actual_version
+                template_dict["orgIdentifier"] = self.dest_org
+                template_dict["projectIdentifier"] = self.dest_project
+                template_dict["versionLabel"] = actual_version
 
             # Convert back to YAML
             updated_yaml = yaml.dump(
-                template_dict, default_flow_style=False, sort_keys=False)
+                template_dict, default_flow_style=False, sort_keys=False
+            )
         except Exception as e:  # noqa: E722
             logger.error("  ✗ Failed to update template YAML: %s", e)
             return False
@@ -402,16 +411,17 @@ class HarnessMigrator:
         # Create in destination with actual version
         result = self.create_template(
             updated_yaml,
-            is_stable=source_template.get('stable_template', True),
-            comments=f"Migrated from {self.source_org}/{self.source_project}")
+            is_stable=source_template.get("stable_template", True),
+            comments=f"Migrated from {self.source_org}/{self.source_project}",
+        )
 
         if result:
             logger.info("  ✓ Template migrated successfully")
-            self.migration_stats['templates']['success'] += 1
+            self.migration_stats["templates"]["success"] += 1
             return True
         else:
             logger.error("  ✗ Failed to create template in destination")
-            self.migration_stats['templates']['failed'] += 1
+            self.migration_stats["templates"]["failed"] += 1
             return False
 
     def verify_prerequisites(self) -> bool:
@@ -419,53 +429,45 @@ class HarnessMigrator:
         logger.info("Verifying destination org and project...")
 
         # Check if in dry run mode
-        dry_run = self.config.get('dry_run', False)
+        dry_run = self.config.get("dry_run", False)
 
         # Check organization
         org_endpoint = f"/v1/orgs/{self.dest_org}"
         org_response = self.dest_client.get(org_endpoint)
 
         if not org_response:
-            logger.error(
-                "Destination organization '%s' does not exist", self.dest_org)
+            logger.error("Destination organization '%s' does not exist", self.dest_org)
 
             if dry_run:
+                logger.info("[DRY RUN] Would create organization '%s'", self.dest_org)
                 logger.info(
-                    "[DRY RUN] Would create organization '%s'", self.dest_org)
-                logger.info(
-                    "Organization '%s' would be created successfully",
-                    self.dest_org)
+                    "Organization '%s' would be created successfully", self.dest_org
+                )
             else:
                 logger.info("Creating organization...")
 
-                create_org = self.dest_client.post("/v1/orgs", json={
-                    "org": {
-                        "identifier": self.dest_org,
-                        "name": self.dest_org
-                    }
-                })
+                create_org = self.dest_client.post(
+                    "/v1/orgs",
+                    json={"org": {"identifier": self.dest_org, "name": self.dest_org}},
+                )
 
                 if not create_org:
                     logger.error("Failed to create organization")
                     return False
-                logger.info(
-                    "Organization '%s' created successfully", self.dest_org)
+                logger.info("Organization '%s' created successfully", self.dest_org)
 
         # Check project
-        project_endpoint = (
-            f"/v1/orgs/{self.dest_org}/projects/{self.dest_project}")
+        project_endpoint = f"/v1/orgs/{self.dest_org}/projects/{self.dest_project}"
         project_response = self.dest_client.get(project_endpoint)
 
         if not project_response:
-            logger.error(
-                "Destination project '%s' does not exist", self.dest_project)
+            logger.error("Destination project '%s' does not exist", self.dest_project)
 
             if dry_run:
+                logger.info("[DRY RUN] Would create project '%s'", self.dest_project)
                 logger.info(
-                    "[DRY RUN] Would create project '%s'", self.dest_project)
-                logger.info(
-                    "Project '%s' would be created successfully",
-                    self.dest_project)
+                    "Project '%s' would be created successfully", self.dest_project
+                )
             else:
                 logger.info("Creating project...")
 
@@ -475,16 +477,15 @@ class HarnessMigrator:
                         "project": {
                             "identifier": self.dest_project,
                             "name": self.dest_project,
-                            "org": self.dest_org
+                            "org": self.dest_org,
                         }
-                    }
+                    },
                 )
 
                 if not create_project:
                     logger.error("Failed to create project")
                     return False
-                logger.info(
-                    "Project '%s' created successfully", self.dest_project)
+                logger.info("Project '%s' created successfully", self.dest_project)
 
         return True
 
@@ -493,13 +494,13 @@ class HarnessMigrator:
         logger.info("  Checking for input sets for pipeline: %s", pipeline_id)
 
         # Check if in dry run mode
-        dry_run = self.config.get('dry_run', False)
+        dry_run = self.config.get("dry_run", False)
 
         # List input sets
         endpoint = (
-            f"/v1/orgs/{self.source_org}/projects/{self.source_project}/"
-            f"input-sets")
-        params = {'pipelineIdentifier': pipeline_id}
+            f"/v1/orgs/{self.source_org}/projects/{self.source_project}/" f"input-sets"
+        )
+        params = {"pipelineIdentifier": pipeline_id}
 
         input_sets_response = self.source_client.get(endpoint, params=params)
 
@@ -510,60 +511,53 @@ class HarnessMigrator:
         # Handle both direct array format and wrapped content format
         if isinstance(input_sets_response, list):
             input_sets = input_sets_response
-        elif 'content' in input_sets_response:
-            input_sets = input_sets_response.get('content', [])
+        elif "content" in input_sets_response:
+            input_sets = input_sets_response.get("content", [])
         else:
-            logger.info(
-                "  Unexpected response format when retrieving input sets")
+            logger.info("  Unexpected response format when retrieving input sets")
             return True
         if input_sets:
             logger.info("  Migrating %d input sets...", len(input_sets))
 
         for input_set in input_sets:
-            input_set_id = input_set.get('identifier')
-            input_set_name = input_set.get('name', input_set_id)
+            input_set_id = input_set.get("identifier")
+            input_set_name = input_set.get("name", input_set_id)
 
             logger.info("  Migrating input set: %s", input_set_name)
 
             # Get full input set details
             get_endpoint = (
                 f"/v1/orgs/{self.source_org}/projects/{self.source_project}/"
-                f"input-sets/{input_set_id}")
-            params = {'pipelineIdentifier': pipeline_id}
-            input_set_details = self.source_client.get(
-                get_endpoint, params=params)
+                f"input-sets/{input_set_id}"
+            )
+            params = {"pipelineIdentifier": pipeline_id}
+            input_set_details = self.source_client.get(get_endpoint, params=params)
 
             if not input_set_details:
-                logger.error(
-                    "  Failed to get details for input set: %s", input_set_id)
-                self.migration_stats['input_sets']['failed'] += 1
+                logger.error("  Failed to get details for input set: %s", input_set_id)
+                self.migration_stats["input_sets"]["failed"] += 1
                 continue
 
             # Create input set in destination
             create_endpoint = (
-                f"/v1/orgs/{self.dest_org}/projects/{self.dest_project}/"
-                f"input-sets")
-            params = {'pipelineIdentifier': pipeline_id}
+                f"/v1/orgs/{self.dest_org}/projects/{self.dest_project}/" f"input-sets"
+            )
+            params = {"pipelineIdentifier": pipeline_id}
 
             if dry_run:
-                logger.info(
-                    "  [DRY RUN] Would create input set '%s'", input_set_name)
+                logger.info("  [DRY RUN] Would create input set '%s'", input_set_name)
                 result = True  # Simulate success
             else:
                 result = self.dest_client.post(
-                    create_endpoint,
-                    params=params,
-                    json=input_set_details
+                    create_endpoint, params=params, json=input_set_details
                 )
 
             if result:
-                logger.info(
-                    "  ✓ Input set '%s' migrated successfully", input_set_name)
-                self.migration_stats['input_sets']['success'] += 1
+                logger.info("  ✓ Input set '%s' migrated successfully", input_set_name)
+                self.migration_stats["input_sets"]["success"] += 1
             else:
-                logger.error(
-                    "  ✗ Failed to migrate input set: %s", input_set_name)
-                self.migration_stats['input_sets']['failed'] += 1
+                logger.error("  ✗ Failed to migrate input set: %s", input_set_name)
+                self.migration_stats["input_sets"]["failed"] += 1
 
             time.sleep(0.3)
 
@@ -575,15 +569,14 @@ class HarnessMigrator:
         logger.info("Starting pipeline migration...")
 
         # Check if in dry run mode
-        dry_run = self.config.get('dry_run', False)
+        dry_run = self.config.get("dry_run", False)
         if dry_run:
-            logger.info(
-                "DRY RUN MODE: Simulating migration, no changes will be made")
+            logger.info("DRY RUN MODE: Simulating migration, no changes will be made")
 
         # List pipelines from source
         endpoint = (
-            f"/v1/orgs/{self.source_org}/projects/{self.source_project}/"
-            f"pipelines")
+            f"/v1/orgs/{self.source_org}/projects/{self.source_project}/" f"pipelines"
+        )
         pipelines_response = self.source_client.get(endpoint)
 
         if pipelines_response is None:
@@ -593,62 +586,69 @@ class HarnessMigrator:
         # Handle both direct array format and wrapped content format
         if isinstance(pipelines_response, list):
             all_pipelines = pipelines_response
-        elif 'content' in pipelines_response:
-            all_pipelines = pipelines_response.get('content', [])
+        elif "content" in pipelines_response:
+            all_pipelines = pipelines_response.get("content", [])
         else:
-            logger.error(
-                "Unexpected response format when retrieving pipelines")
+            logger.error("Unexpected response format when retrieving pipelines")
             return False
 
         # Filter to selected pipelines if specified
-        selected_pipelines = self.config.get('pipelines', [])
+        selected_pipelines = self.config.get("pipelines", [])
         if selected_pipelines:
             # Extract identifiers from selected pipeline objects
-            selected_ids = [p.get('identifier') for p in selected_pipelines]
-            pipelines = [p for p in all_pipelines if p.get(
-                'identifier') in selected_ids]
+            selected_ids = [p.get("identifier") for p in selected_pipelines]
+            pipelines = [
+                p for p in all_pipelines if p.get("identifier") in selected_ids
+            ]
             logger.info(
                 "Migrating %d selected pipeline(s) out of %d total",
-                len(pipelines), len(all_pipelines))
+                len(pipelines),
+                len(all_pipelines),
+            )
         else:
             pipelines = all_pipelines
             logger.info("Found %d pipelines to migrate", len(pipelines))
 
         if not pipelines:
-            logger.info(
-                "No pipelines to migrate - skipping pipeline migration")
+            logger.info("No pipelines to migrate - skipping pipeline migration")
             return True
 
         for pipeline in pipelines:
-            pipeline_id = pipeline.get('identifier')
-            pipeline_name = pipeline.get('name', pipeline_id)
+            pipeline_id = pipeline.get("identifier")
+            pipeline_name = pipeline.get("name", pipeline_id)
 
-            logger.info(
-                "\nMigrating pipeline: %s (%s)", pipeline_name, pipeline_id)
+            logger.info("\nMigrating pipeline: %s (%s)", pipeline_name, pipeline_id)
 
             # Get full pipeline details from source
             # We need the complete pipeline definition, not just summary
             get_endpoint = (
                 f"/v1/orgs/{self.source_org}/"
                 f"projects/{self.source_project}/"
-                f"pipelines/{pipeline_id}")
+                f"pipelines/{pipeline_id}"
+            )
 
             # Add query parameter to get full YAML
             pipeline_response = self.source_client.get(
-                get_endpoint, params={'getDefaultFromOtherRepo': 'false'})
+                get_endpoint, params={"getDefaultFromOtherRepo": "false"}
+            )
 
             if not pipeline_response:
                 logger.warning(
-                    "Could not fetch pipeline details, "
-                    "trying to use list data: %s", pipeline_id)
+                    "Could not fetch pipeline details, " "trying to use list data: %s",
+                    pipeline_id,
+                )
                 # Fallback to list data if available
                 pipeline_response = pipeline
 
             # Log the response structure for debugging
             logger.debug(
                 "Pipeline GET response keys: %s",
-                list(pipeline_response.keys()) if isinstance(
-                    pipeline_response, dict) else type(pipeline_response))
+                (
+                    list(pipeline_response.keys())
+                    if isinstance(pipeline_response, dict)
+                    else type(pipeline_response)
+                ),
+            )
 
             # Extract the pipeline object from response
             if isinstance(pipeline_response, dict):
@@ -658,8 +658,12 @@ class HarnessMigrator:
 
                 # Essential fields for pipeline creation
                 essential_fields = [
-                    'identifier', 'name', 'description', 'tags',
-                    'pipeline_yaml', 'yaml_pipeline'
+                    "identifier",
+                    "name",
+                    "description",
+                    "tags",
+                    "pipeline_yaml",
+                    "yaml_pipeline",
                 ]
 
                 for field in essential_fields:
@@ -667,69 +671,75 @@ class HarnessMigrator:
                         pipeline_details[field] = pipeline_response[field]
 
                 # If no YAML field found, log error
-                if ('pipeline_yaml' not in pipeline_details and
-                        'yaml_pipeline' not in pipeline_details):
+                if (
+                    "pipeline_yaml" not in pipeline_details
+                    and "yaml_pipeline" not in pipeline_details
+                ):
                     logger.error(
                         "Pipeline has no YAML content: %s. Available keys: %s",
-                        pipeline_id, list(pipeline_response.keys()))
-                    self.migration_stats['pipelines']['failed'] += 1
+                        pipeline_id,
+                        list(pipeline_response.keys()),
+                    )
+                    self.migration_stats["pipelines"]["failed"] += 1
                     continue
             else:
-                logger.error(
-                    "Invalid pipeline response format for: %s", pipeline_id)
-                self.migration_stats['pipelines']['failed'] += 1
+                logger.error("Invalid pipeline response format for: %s", pipeline_id)
+                self.migration_stats["pipelines"]["failed"] += 1
                 continue
 
             # Extract template references from pipeline YAML
             yaml_content = pipeline_details.get(
-                'pipeline_yaml',
-                pipeline_details.get('yaml_pipeline', ''))
+                "pipeline_yaml", pipeline_details.get("yaml_pipeline", "")
+            )
             missing_templates = []
             if yaml_content:
                 templates = self.extract_template_refs(yaml_content)
                 if templates:
                     logger.info(
-                        "  Found %d template reference(s) in pipeline",
-                        len(templates))
+                        "  Found %d template reference(s) in pipeline", len(templates)
+                    )
 
                     # Check which templates are missing in destination
                     for template_ref, version_label in templates:
-                        exists = self.check_template_exists(
-                            template_ref, version_label)
+                        exists = self.check_template_exists(template_ref, version_label)
                         if not exists:
-                            missing_templates.append(
-                                (template_ref, version_label))
+                            missing_templates.append((template_ref, version_label))
                             logger.warning(
                                 "  ⚠ Template '%s' (v%s) not found in dest",
-                                template_ref, version_label)
+                                template_ref,
+                                version_label,
+                            )
                         else:
                             logger.info(
                                 "  ✓ Template '%s' (v%s) exists in dest",
-                                template_ref, version_label)
+                                template_ref,
+                                version_label,
+                            )
 
                     # If templates are missing, try to migrate them
                     if missing_templates and not dry_run:
                         # Check if auto_migrate_templates is enabled
                         # Default to False to ask user first
-                        auto_migrate = self.config.get(
-                            'options', {}).get('auto_migrate_templates',
-                                               False)
+                        auto_migrate = self.config.get("options", {}).get(
+                            "auto_migrate_templates", False
+                        )
                         # Check if we're in non-interactive mode
                         # This can be set via --non-interactive flag or config
-                        interactive = not self.config.get(
-                            'non_interactive', False)
-                        
+                        interactive = not self.config.get("non_interactive", False)
 
                         # In interactive mode, ask user what to do
                         if interactive and not auto_migrate:
                             try:
                                 from prompt_toolkit.shortcuts import (  # noqa: F401, E501
-                                    button_dialog)
+                                    button_dialog,
+                                )
 
-                                template_list = "\n".join([
-                                    f"  • {ref} (version: {ver if ver else 'stable'})"
-                                    for ref, ver in missing_templates
-                                ])
+                                template_list = "\n".join(
+                                    [
+                                        f"  • {ref} (version: {ver if ver else 'stable'})"
+                                        for ref, ver in missing_templates
+                                    ]
+                                )
 
                                 text = (
                                     f"Pipeline '{pipeline_name}' requires "
@@ -739,47 +749,54 @@ class HarnessMigrator:
                                     f"templates from the source environment. "
                                     f"This will create the templates in the "
                                     f"destination before creating the pipeline.\n\n"
-                                    f"Do you want to migrate these templates?")
+                                    f"Do you want to migrate these templates?"
+                                )
 
                                 choice = button_dialog(
                                     title="Missing Templates",
                                     text=text,
                                     buttons=[
-                                        ('migrate', 'Yes, Migrate Templates'),
-                                        ('skip_templates',
-                                         'No, Continue Without Templates'),
-                                        ('skip', 'Skip This Pipeline')
-                                    ]
+                                        ("migrate", "Yes, Migrate Templates"),
+                                        (
+                                            "skip_templates",
+                                            "No, Continue Without Templates",
+                                        ),
+                                        ("skip", "Skip This Pipeline"),
+                                    ],
                                 ).run()
 
-                                if choice == 'skip':
+                                if choice == "skip":
                                     # User chose to skip
                                     logger.info(
                                         "  ⊘ Skipping pipeline due to "
-                                        "missing templates")
-                                    self.migration_stats['pipelines'][
-                                        'failed'] += 1
+                                        "missing templates"
+                                    )
+                                    self.migration_stats["pipelines"]["failed"] += 1
                                     continue
-                                elif choice == 'migrate':
+                                elif choice == "migrate":
                                     should_migrate = True
-                                elif choice == 'skip_templates':
+                                elif choice == "skip_templates":
                                     should_migrate = False
                                     logger.warning(
                                         "  ⚠ Continuing without migrating templates "
-                                        "(pipeline creation will likely fail)")
+                                        "(pipeline creation will likely fail)"
+                                    )
                                 else:
                                     # Dialog returned None or unexpected value
                                     # Default to auto-migrate
                                     should_migrate = True
                                     logger.info(
                                         "  → Dialog failed, auto-migrating %d template(s)...",
-                                        len(missing_templates))
+                                        len(missing_templates),
+                                    )
                             except (EOFError, KeyboardInterrupt, Exception) as e:
                                 # Dialog failed (no TTY, cancelled, or error)
                                 # Default to auto-migrate instead of failing
                                 logger.warning(
                                     "  ⚠ Interactive dialog failed (%s), "
-                                    "auto-migrating templates", type(e).__name__)
+                                    "auto-migrating templates",
+                                    type(e).__name__,
+                                )
                                 should_migrate = True
                         else:
                             # Auto-migrate enabled or non-interactive mode
@@ -787,118 +804,137 @@ class HarnessMigrator:
                             if auto_migrate:
                                 logger.info(
                                     "  → Auto-migrate enabled: migrating %d missing template(s)...",
-                                    len(missing_templates))
+                                    len(missing_templates),
+                                )
                             else:
                                 logger.info(
                                     "  → Non-interactive mode: migrating %d missing template(s)...",
-                                    len(missing_templates))
+                                    len(missing_templates),
+                                )
 
                         # Try to migrate the templates
                         if should_migrate:
                             for template_ref, version_label in missing_templates:
                                 success = self.migrate_template(
-                                    template_ref, version_label)
+                                    template_ref, version_label
+                                )
                                 if not success:
                                     logger.error(
                                         "  ✗ Failed to migrate template, "
-                                        "pipeline creation will likely fail")
+                                        "pipeline creation will likely fail"
+                                    )
                     elif missing_templates and dry_run:
                         logger.info(
                             "  [DRY RUN] Would migrate %d template(s)",
-                            len(missing_templates))
+                            len(missing_templates),
+                        )
 
             # Check if pipeline already exists
             dest_endpoint = (
                 f"/v1/orgs/{self.dest_org}/projects/{self.dest_project}/"
-                f"pipelines/{pipeline_id}")
+                f"pipelines/{pipeline_id}"
+            )
             existing = self.dest_client.get(dest_endpoint)
 
             if existing:
-                if self.config.get('options', {}).get('skip_existing', True):
-                    logger.info(
-                        "Pipeline '%s' already exists. Skipping.", pipeline_id)
+                if self.config.get("options", {}).get("skip_existing", True):
+                    logger.info("Pipeline '%s' already exists. Skipping.", pipeline_id)
                     continue
                 else:
-                    logger.info(
-                        "Pipeline '%s' exists. Updating...", pipeline_id)
+                    logger.info("Pipeline '%s' exists. Updating...", pipeline_id)
                     if dry_run:
                         logger.info(
-                            "[DRY RUN] Would update pipeline '%s'", pipeline_name)  # noqa: E501
+                            "[DRY RUN] Would update pipeline '%s'", pipeline_name
+                        )  # noqa: E501
                         result = True  # Simulate success
                     else:
                         result = self.dest_client.put(
-                            dest_endpoint, json=pipeline_details)
+                            dest_endpoint, json=pipeline_details
+                        )
             else:
                 # Create pipeline in destination
                 create_endpoint = (
                     f"/v1/orgs/{self.dest_org}/projects/{self.dest_project}/"
-                    f"pipelines")
+                    f"pipelines"
+                )
                 if dry_run:
-                    logger.info(
-                        "[DRY RUN] Would create pipeline '%s'", pipeline_name)
+                    logger.info("[DRY RUN] Would create pipeline '%s'", pipeline_name)
                     result = True  # Simulate success
                 else:
                     logger.info(
                         "Creating pipeline with payload keys: %s",
-                        list(pipeline_details.keys()) if isinstance(
-                            pipeline_details, dict) else "not a dict")
-                    logger.debug("Pipeline payload: %s",
-                                 json.dumps(pipeline_details, indent=2)[:2000])
+                        (
+                            list(pipeline_details.keys())
+                            if isinstance(pipeline_details, dict)
+                            else "not a dict"
+                        ),
+                    )
+                    logger.debug(
+                        "Pipeline payload: %s",
+                        json.dumps(pipeline_details, indent=2)[:2000],
+                    )
 
                     # Update org and project identifiers in YAML
-                    if 'pipeline_yaml' in pipeline_details:
-                        yaml_content = pipeline_details['pipeline_yaml']
+                    if "pipeline_yaml" in pipeline_details:
+                        yaml_content = pipeline_details["pipeline_yaml"]
 
                         # Replace source org/project with dest org/project
                         yaml_content = yaml_content.replace(
-                            f'orgIdentifier: {self.source_org}',
-                            f'orgIdentifier: {self.dest_org}')
+                            f"orgIdentifier: {self.source_org}",
+                            f"orgIdentifier: {self.dest_org}",
+                        )
                         yaml_content = yaml_content.replace(
-                            f'projectIdentifier: {self.source_project}',
-                            f'projectIdentifier: {self.dest_project}')
+                            f"projectIdentifier: {self.source_project}",
+                            f"projectIdentifier: {self.dest_project}",
+                        )
 
                         logger.debug(
                             "Updated identifiers: org=%s, project=%s",
-                            self.dest_org, self.dest_project)
+                            self.dest_org,
+                            self.dest_project,
+                        )
 
                         # Update the pipeline_details with corrected YAML
-                        pipeline_details['pipeline_yaml'] = yaml_content
+                        pipeline_details["pipeline_yaml"] = yaml_content
 
                     # The v1 API requires snake_case field name: pipeline_yaml
                     # with identifier and name as separate fields
-                    yaml_content = pipeline_details.get('pipeline_yaml', '')
+                    yaml_content = pipeline_details.get("pipeline_yaml", "")
                     payload = {
-                        'identifier': pipeline_id,
-                        'name': pipeline_name,
-                        'pipeline_yaml': yaml_content
+                        "identifier": pipeline_id,
+                        "name": pipeline_name,
+                        "pipeline_yaml": yaml_content,
                     }
 
                     # Add description and tags if present
-                    if pipeline_details.get('description'):
-                        payload['description'] = (
-                            pipeline_details['description'])
-                    if pipeline_details.get('tags'):
-                        payload['tags'] = pipeline_details['tags']
+                    if pipeline_details.get("description"):
+                        payload["description"] = pipeline_details["description"]
+                    if pipeline_details.get("tags"):
+                        payload["tags"] = pipeline_details["tags"]
 
                     logger.debug("Sending pipeline creation payload")
-                    logger.debug("Final payload YAML (first 500 chars): %s",
-                                 payload.get('pipeline_yaml', '')[:500])
-                    result = self.dest_client.post(
-                        create_endpoint, json=payload)
+                    logger.debug(
+                        "Final payload YAML (first 500 chars): %s",
+                        payload.get("pipeline_yaml", "")[:500],
+                    )
+                    result = self.dest_client.post(create_endpoint, json=payload)
                     if not result:
                         logger.error(
                             "Pipeline creation failed. Payload had keys: %s",
-                            list(pipeline_details.keys()))
+                            list(pipeline_details.keys()),
+                        )
 
             if result:
-                self.migration_stats['pipelines']['success'] += 1
+                self.migration_stats["pipelines"]["success"] += 1
 
                 # Migrate associated input sets
-                if self.config.get('options', {}).get('migrate_input_sets', True):  # noqa: E501
+                if self.config.get("options", {}).get(
+                    "migrate_input_sets", True
+                ):  # noqa: E501
                     self.migrate_input_sets(pipeline_id)
             else:
                 logger.error("✗ Failed to migrate pipeline: %s", pipeline_name)
-                self.migration_stats['pipelines']['failed'] += 1
+                self.migration_stats["pipelines"]["failed"] += 1
 
             time.sleep(0.5)
 
@@ -906,7 +942,7 @@ class HarnessMigrator:
 
     def run_migration(self):
         """Execute the full migration process"""
-        dry_run = self.config.get('dry_run', False)
+        dry_run = self.config.get("dry_run", False)
 
         logger.info("=" * 80)
         if dry_run:
@@ -915,14 +951,13 @@ class HarnessMigrator:
         else:
             logger.info("HARNESS PIPELINE MIGRATION")
         logger.info("=" * 80)
-        logger.info("Source: %s", self.config['source']['base_url'])
-        logger.info(
-            "  Org: %s, Project: %s", self.source_org, self.source_project)
-        logger.info("Destination: %s", self.config['destination']['base_url'])
+        logger.info("Source: %s", self.config["source"]["base_url"])
+        logger.info("  Org: %s, Project: %s", self.source_org, self.source_project)
+        logger.info("Destination: %s", self.config["destination"]["base_url"])
         logger.info("  Org: %s, Project: %s", self.dest_org, self.dest_project)
 
         # Show selected pipelines if any
-        selected_ids = self.config.get('selected_pipelines', [])
+        selected_ids = self.config.get("selected_pipelines", [])
         if selected_ids:
             logger.info("  Selected Pipelines: %d", len(selected_ids))
 
@@ -930,8 +965,7 @@ class HarnessMigrator:
 
         # Step 1: Verify prerequisites
         if not self.verify_prerequisites():
-            logger.error(
-                "Prerequisites verification failed. Aborting migration.")
+            logger.error("Prerequisites verification failed. Aborting migration.")
             return False
 
         # Step 2: Migrate pipelines
@@ -946,7 +980,7 @@ class HarnessMigrator:
 
     def print_summary(self):
         """Print migration summary"""
-        dry_run = self.config.get('dry_run', False)
+        dry_run = self.config.get("dry_run", False)
 
         logger.info("\n%s", "=" * 80)
         if dry_run:
@@ -967,23 +1001,23 @@ class HarnessMigrator:
 def load_config(config_file: str) -> Dict:
     """Load configuration from JSON/JSONC file"""
     try:
-        with open(config_file, 'r', encoding='utf-8') as f:
+        with open(config_file, "r", encoding="utf-8") as f:
             content = f.read()
 
         # Remove JSON comments (// style)
         # Remove single-line comments (// style) but preserve URLs with //
-        lines = content.split('\n')
+        lines = content.split("\n")
         cleaned_lines = []
         for line in lines:
             # Find // that's not part of a URL (not preceded by :)
-            if '//' in line:
+            if "//" in line:
                 # Check if it's a URL (contains ://)
-                if '://' in line:
+                if "://" in line:
                     # It's a URL, don't remove the //
                     cleaned_lines.append(line)
                 else:
                     # It's a comment, remove everything after //
-                    comment_pos = line.find('//')
+                    comment_pos = line.find("//")
                     cleaned_line = line[:comment_pos].rstrip()
                     # Only add non-empty lines
                     if cleaned_line:
@@ -991,10 +1025,10 @@ def load_config(config_file: str) -> Dict:
             else:
                 cleaned_lines.append(line)
 
-        content = '\n'.join(cleaned_lines)
+        content = "\n".join(cleaned_lines)
 
         # Remove trailing commas before closing braces/brackets
-        content = re.sub(r',(\s*[}\]])', r'\1', content)
+        content = re.sub(r",(\s*[}\]])", r"\1", content)
 
         return json.loads(content)
     except FileNotFoundError:
@@ -1010,26 +1044,30 @@ def save_config(config: Dict, config_file: str) -> bool:
     try:
         # Create a clean config without API keys exposed
         clean_config = {
-            'source': {
-                'base_url': config['source']['base_url'],
-                'api_key': config['source']['api_key'],
-                'org': config['source']['org'],
-                'project': config['source']['project']
+            "source": {
+                "base_url": config["source"]["base_url"],
+                "api_key": config["source"]["api_key"],
+                "org": config["source"]["org"],
+                "project": config["source"]["project"],
             },
-            'destination': {
-                'base_url': config['destination']['base_url'],
-                'api_key': config['destination']['api_key'],
-                'org': config['destination']['org'],
-                'project': config['destination']['project']
+            "destination": {
+                "base_url": config["destination"]["base_url"],
+                "api_key": config["destination"]["api_key"],
+                "org": config["destination"]["org"],
+                "project": config["destination"]["project"],
             },
-            'options': config.get('options', {}),
-            'selected_pipelines': [
-                {'identifier': p.get('identifier'), 'name': p.get('name')}
-                for p in config.get('pipelines', [])
-            ] if config.get('pipelines') else []
+            "options": config.get("options", {}),
+            "selected_pipelines": (
+                [
+                    {"identifier": p.get("identifier"), "name": p.get("name")}
+                    for p in config.get("pipelines", [])
+                ]
+                if config.get("pipelines")
+                else []
+            ),
         }
 
-        with open(config_file, 'w', encoding='utf-8') as f:
+        with open(config_file, "w", encoding="utf-8") as f:
             json.dump(clean_config, f, indent=2)
 
         return True
@@ -1050,8 +1088,8 @@ def non_interactive_mode(config_file: str):
 
     # Validate required fields
     required_fields = {
-        'source': ['base_url', 'api_key', 'org', 'project'],
-        'destination': ['base_url', 'api_key', 'org', 'project']
+        "source": ["base_url", "api_key", "org", "project"],
+        "destination": ["base_url", "api_key", "org", "project"],
     }
 
     for section, fields in required_fields.items():
@@ -1065,32 +1103,31 @@ def non_interactive_mode(config_file: str):
 
     # Build config from file
     config = {
-        'source': {
-            'base_url': base_config['source']['base_url'],
-            'api_key': base_config['source']['api_key'],
-            'org': base_config['source']['org'],
-            'project': base_config['source']['project']
+        "source": {
+            "base_url": base_config["source"]["base_url"],
+            "api_key": base_config["source"]["api_key"],
+            "org": base_config["source"]["org"],
+            "project": base_config["source"]["project"],
         },
-        'destination': {
-            'base_url': base_config['destination']['base_url'],
-            'api_key': base_config['destination']['api_key'],
-            'org': base_config['destination']['org'],
-            'project': base_config['destination']['project']
+        "destination": {
+            "base_url": base_config["destination"]["base_url"],
+            "api_key": base_config["destination"]["api_key"],
+            "org": base_config["destination"]["org"],
+            "project": base_config["destination"]["project"],
         },
-        'options': base_config.get('options', {
-            'migrate_input_sets': True,
-            'skip_existing': True
-        }),
-        'pipelines': base_config.get('selected_pipelines', []),
-        'dry_run': False,
-        'non_interactive': True
+        "options": base_config.get(
+            "options", {"migrate_input_sets": True, "skip_existing": True}
+        ),
+        "pipelines": base_config.get("selected_pipelines", []),
+        "dry_run": False,
+        "non_interactive": True,
     }
 
+    print(f"Source: {config['source']['org']}/" f"{config['source']['project']}")
     print(
-        f"Source: {config['source']['org']}/"
-        f"{config['source']['project']}")
-    print(f"Destination: {config['destination']['org']}/"
-          f"{config['destination']['project']}")
+        f"Destination: {config['destination']['org']}/"
+        f"{config['destination']['project']}"
+    )
     print(f"Pipelines: {len(config['pipelines'])}")
 
     return config
@@ -1101,25 +1138,23 @@ def hybrid_mode(config_file: str):
     print("\n" + "=" * 80)
     print("HARNESS PIPELINE MIGRATION")
     print("=" * 80)
-    print(
-        "Using config file values where available, "
-        "prompting for missing fields")
+    print("Using config file values where available, " "prompting for missing fields")
 
     # Load base config
     base_config = load_config(config_file)
 
     # Initialize clients with config values
-    source_url = base_config.get('source', {}).get('base_url')
-    source_api_key = base_config.get('source', {}).get('api_key')
-    dest_url = base_config.get('destination', {}).get('base_url')
-    dest_api_key = base_config.get('destination', {}).get('api_key')
+    source_url = base_config.get("source", {}).get("base_url")
+    source_api_key = base_config.get("source", {}).get("api_key")
+    dest_url = base_config.get("destination", {}).get("base_url")
+    dest_api_key = base_config.get("destination", {}).get("api_key")
 
     # Prompt for missing credentials
     if not source_url:
         source_subdomain = radiolist_dialog(
             title="Source Account",
             text="Select source Harness subdomain:",
-            values=[("app", "app.harness.io"), ("app3", "app3.harness.io")]
+            values=[("app", "app.harness.io"), ("app3", "app3.harness.io")],
         ).run()
         if not source_subdomain:
             print("❌ Selection cancelled")
@@ -1140,7 +1175,7 @@ def hybrid_mode(config_file: str):
         dest_subdomain = radiolist_dialog(
             title="Destination Account",
             text="Select destination Harness subdomain:",
-            values=[("app", "app.harness.io"), ("app3", "app3.harness.io")]
+            values=[("app", "app.harness.io"), ("app3", "app3.harness.io")],
         ).run()
         if not dest_subdomain:
             print("❌ Selection cancelled")
@@ -1150,8 +1185,7 @@ def hybrid_mode(config_file: str):
         print(f"✓ Using destination URL from config: {dest_url}")
 
     if not dest_api_key:
-        dest_api_key = prompt("Destination API Key: ",
-                              is_password=True).strip()
+        dest_api_key = prompt("Destination API Key: ", is_password=True).strip()
         if not dest_api_key:
             print("❌ Error: Destination API key is required")
             sys.exit(1)
@@ -1164,11 +1198,11 @@ def hybrid_mode(config_file: str):
 
     # Get organization and project selections
     return _get_selections_from_clients(
-        source_client, dest_client, base_config, config_file)
+        source_client, dest_client, base_config, config_file
+    )
 
 
-def _get_selections_from_clients(source_client, dest_client, base_config,
-                                 config_file):
+def _get_selections_from_clients(source_client, dest_client, base_config, config_file):
     """Common logic for getting selections from clients"""
     # Initialize variables
     selected_pipelines = []
@@ -1179,13 +1213,15 @@ def _get_selections_from_clients(source_client, dest_client, base_config,
     print("=" * 80)
 
     # Check if already configured
-    pre_selected_org = base_config.get('source', {}).get('org')
+    pre_selected_org = base_config.get("source", {}).get("org")
     if pre_selected_org:
         print(f"ℹ️  Previously selected: {pre_selected_org}")
         use_previous = yes_no_dialog(
             title="Use Previous Source Organization?",
-            text=(f"Use previously selected SOURCE organization:\n"
-                  f"  {pre_selected_org}?")
+            text=(
+                f"Use previously selected SOURCE organization:\n"
+                f"  {pre_selected_org}?"
+            ),
         ).run()
 
         if use_previous:
@@ -1208,21 +1244,22 @@ def _get_selections_from_clients(source_client, dest_client, base_config,
     print("=" * 80)
 
     # Check if already configured
-    pre_selected_project = base_config.get('source', {}).get('project')
+    pre_selected_project = base_config.get("source", {}).get("project")
     if pre_selected_project:
         print(f"ℹ️  Previously selected: {pre_selected_project}")
         use_previous = yes_no_dialog(
             title="Use Previous Source Project?",
-            text=(f"Use previously selected SOURCE project:\n"
-                  f"  {pre_selected_project}?")
+            text=(
+                f"Use previously selected SOURCE project:\n"
+                f"  {pre_selected_project}?"
+            ),
         ).run()
 
         if use_previous:
             source_project = pre_selected_project
             print(f"✓ Using: {source_project}")
         else:
-            source_project = select_project(
-                source_client, source_org, "source")
+            source_project = select_project(source_client, source_org, "source")
             if not source_project:
                 print("❌ Selection cancelled")
                 sys.exit(1)
@@ -1238,11 +1275,9 @@ def _get_selections_from_clients(source_client, dest_client, base_config,
     print("=" * 80)
 
     # Check if already configured
-    pre_selected_pipelines = base_config.get('selected_pipelines', [])
+    pre_selected_pipelines = base_config.get("selected_pipelines", [])
     if pre_selected_pipelines:
-        print(
-            f"ℹ️  Previously selected "
-            f"{len(pre_selected_pipelines)} pipeline(s):")
+        print(f"ℹ️  Previously selected " f"{len(pre_selected_pipelines)} pipeline(s):")
         for p in pre_selected_pipelines[:5]:  # Show first 5
             print(f"   - {p.get('name', p.get('identifier'))}")
         if len(pre_selected_pipelines) > 5:
@@ -1250,51 +1285,55 @@ def _get_selections_from_clients(source_client, dest_client, base_config,
 
         use_previous = yes_no_dialog(
             title="Use Previous Pipeline Selection?",
-            text=(f"Use previously selected "
-                  f"{len(pre_selected_pipelines)} SOURCE pipeline(s)?")
+            text=(
+                f"Use previously selected "
+                f"{len(pre_selected_pipelines)} SOURCE pipeline(s)?"
+            ),
         ).run()
 
         if use_previous:
             # Fetch full pipeline objects for the pre-selected identifiers
-            endpoint = (
-                f"/v1/orgs/{source_org}/projects/{source_project}/pipelines")
+            endpoint = f"/v1/orgs/{source_org}/projects/{source_project}/pipelines"
             all_pipelines_response = source_client.get(endpoint)
 
             if all_pipelines_response:
                 if isinstance(all_pipelines_response, list):
                     all_pipes = all_pipelines_response
-                elif 'content' in all_pipelines_response:
-                    all_pipes = all_pipelines_response.get('content', [])
+                elif "content" in all_pipelines_response:
+                    all_pipes = all_pipelines_response.get("content", [])
                 else:
                     all_pipes = []
 
                 # Get identifiers from pre-selected
-                pre_ids = [p.get('identifier') for p in pre_selected_pipelines]
+                pre_ids = [p.get("identifier") for p in pre_selected_pipelines]
                 # Match with full objects
                 selected_pipelines = [
-                    p for p in all_pipes if p.get('identifier') in pre_ids]
+                    p for p in all_pipes if p.get("identifier") in pre_ids
+                ]
                 print(
                     f"✓ Using {len(selected_pipelines)} "
-                    f"previously selected pipeline(s)")
+                    f"previously selected pipeline(s)"
+                )
             else:
                 print("⚠️  Could not fetch pipelines, re-selecting...")
                 selected_pipelines = select_pipelines(
-                    source_client, source_org, source_project)
+                    source_client, source_org, source_project
+                )
         else:
             selected_pipelines = select_pipelines(
-                source_client, source_org, source_project)
+                source_client, source_org, source_project
+            )
     else:
         print("Use Space to select/deselect, Enter to confirm, Esc to cancel")
-        selected_pipelines = select_pipelines(
-            source_client, source_org, source_project)
+        selected_pipelines = select_pipelines(source_client, source_org, source_project)
 
     if selected_pipelines is None:
         print("❌ Migration cancelled")
         sys.exit(1)
-    elif selected_pipelines == 'ERROR':
+    elif selected_pipelines == "ERROR":
         print("⚠️  Error occurred")
         sys.exit(1)
-    elif not selected_pipelines or selected_pipelines == 'BACK_TO_PROJECTS':
+    elif not selected_pipelines or selected_pipelines == "BACK_TO_PROJECTS":
         print("⚠️  No pipelines selected - continuing with empty selection")
         selected_pipelines = []
 
@@ -1307,13 +1346,15 @@ def _get_selections_from_clients(source_client, dest_client, base_config,
     org_just_created = False
 
     # Check if already configured
-    pre_selected_dest_org = base_config.get('destination', {}).get('org')
+    pre_selected_dest_org = base_config.get("destination", {}).get("org")
     if pre_selected_dest_org:
         print(f"ℹ️  Previously selected: {pre_selected_dest_org}")
         use_previous = yes_no_dialog(
             title="Use Previous Destination Organization?",
-            text=(f"Use previously selected DESTINATION organization:\n"
-                  f"  {pre_selected_dest_org}?")
+            text=(
+                f"Use previously selected DESTINATION organization:\n"
+                f"  {pre_selected_dest_org}?"
+            ),
         ).run()
 
         if use_previous:
@@ -1321,14 +1362,14 @@ def _get_selections_from_clients(source_client, dest_client, base_config,
             print(f"✓ Using: {dest_org}")
         else:
             result = select_or_create_organization(
-                dest_client, source_org, "destination")
+                dest_client, source_org, "destination"
+            )
             if not result:
                 print("❌ Selection cancelled")
                 sys.exit(1)
             dest_org, org_just_created = result
     else:
-        result = select_or_create_organization(
-            dest_client, source_org, "destination")
+        result = select_or_create_organization(dest_client, source_org, "destination")
         if not result:
             print("❌ Selection cancelled")
             sys.exit(1)
@@ -1343,23 +1384,25 @@ def _get_selections_from_clients(source_client, dest_client, base_config,
     if org_just_created:
         print(
             f"ℹ️  Organization '{dest_org}' was just created - "
-            f"it has no projects yet")
+            f"it has no projects yet"
+        )
         dest_project = select_or_create_project(
-            dest_client, dest_org, source_project, "destination",
-            force_create=True)
+            dest_client, dest_org, source_project, "destination", force_create=True
+        )
         if not dest_project:
             print("❌ Selection cancelled")
             sys.exit(1)
     else:
         # Check if already configured
-        pre_selected_dest_project = base_config.get(
-            'destination', {}).get('project')
+        pre_selected_dest_project = base_config.get("destination", {}).get("project")
         if pre_selected_dest_project:
             print(f"ℹ️  Previously selected: {pre_selected_dest_project}")
             use_previous = yes_no_dialog(
                 title="Use Previous Destination Project?",
-                text=(f"Use previously selected DESTINATION project:\n"
-                      f"  {pre_selected_dest_project}?")
+                text=(
+                    f"Use previously selected DESTINATION project:\n"
+                    f"  {pre_selected_dest_project}?"
+                ),
             ).run()
 
             if use_previous:
@@ -1367,13 +1410,15 @@ def _get_selections_from_clients(source_client, dest_client, base_config,
                 print(f"✓ Using: {dest_project}")
             else:
                 dest_project = select_or_create_project(
-                    dest_client, dest_org, source_project, "destination")
+                    dest_client, dest_org, source_project, "destination"
+                )
                 if not dest_project:
                     print("❌ Selection cancelled")
                     sys.exit(1)
         else:
             dest_project = select_or_create_project(
-                dest_client, dest_org, source_project, "destination")
+                dest_client, dest_org, source_project, "destination"
+            )
             if not dest_project:
                 print("❌ Selection cancelled")
                 sys.exit(1)
@@ -1384,36 +1429,35 @@ def _get_selections_from_clients(source_client, dest_client, base_config,
     print("=" * 80)
 
     # Use config options or prompt for them
-    migrate_input_sets = base_config.get(
-        'options', {}).get('migrate_input_sets', True)
-    skip_existing = base_config.get('options', {}).get('skip_existing', True)
+    migrate_input_sets = base_config.get("options", {}).get("migrate_input_sets", True)
+    skip_existing = base_config.get("options", {}).get("skip_existing", True)
 
     # Ask about dry run
     dry_run = yes_no_dialog(
         title="Dry Run",
-        text="Do you want to run in dry-run mode? (No changes will be made)"
+        text="Do you want to run in dry-run mode? (No changes will be made)",
     ).run()
 
     # Build final config
     config = {
-        'source': {
-            'base_url': source_client.base_url,
-            'api_key': source_client.api_key,
-            'org': source_org,
-            'project': source_project
+        "source": {
+            "base_url": source_client.base_url,
+            "api_key": source_client.api_key,
+            "org": source_org,
+            "project": source_project,
         },
-        'destination': {
-            'base_url': dest_client.base_url,
-            'api_key': dest_client.api_key,
-            'org': dest_org,
-            'project': dest_project
+        "destination": {
+            "base_url": dest_client.base_url,
+            "api_key": dest_client.api_key,
+            "org": dest_org,
+            "project": dest_project,
         },
-        'options': {
-            'migrate_input_sets': migrate_input_sets,
-            'skip_existing': skip_existing
+        "options": {
+            "migrate_input_sets": migrate_input_sets,
+            "skip_existing": skip_existing,
         },
-        'pipelines': selected_pipelines if selected_pipelines else [],
-        'dry_run': dry_run
+        "pipelines": selected_pipelines if selected_pipelines else [],
+        "dry_run": dry_run,
     }
 
     # Ask if user wants to save the configuration
@@ -1424,7 +1468,7 @@ def _get_selections_from_clients(source_client, dest_client, base_config,
             "Do you want to save these selections to the config file?\n\n"
             "This will allow you to quickly re-run with the same settings\n"
             "next time (useful for troubleshooting)."
-        )
+        ),
     ).run()
 
     if save_choice:
@@ -1436,42 +1480,42 @@ def _get_selections_from_clients(source_client, dest_client, base_config,
     return config
 
 
-def select_organization(client: HarnessAPIClient, context: str) -> Optional[str]:  # noqa: E501
+def select_organization(
+    client: HarnessAPIClient, context: str
+) -> Optional[str]:  # noqa: E501
     """Interactive organization selection with arrow keys"""
     response = client.get("/v1/orgs")
 
     if response is None:
         message_dialog(
-            title="Error",
-            text=f"Failed to retrieve organizations from {context}"
+            title="Error", text=f"Failed to retrieve organizations from {context}"
         ).run()
         return None
 
     # Handle both direct array format and wrapped content format
     if isinstance(response, list):
         orgs = response
-    elif 'content' in response:
-        orgs = response.get('content', [])
+    elif "content" in response:
+        orgs = response.get("content", [])
     else:
         message_dialog(
-            title="Error",
-            text=f"Unexpected response format from {context}"
+            title="Error", text=f"Unexpected response format from {context}"
         ).run()
         return None
 
     if not orgs:
         message_dialog(
             title="No Organizations",
-            text=f"No organizations found in {context} account"
+            text=f"No organizations found in {context} account",
         ).run()
         return None
 
     # Build values for radiolist (without Back option)
     values = []
     for org in orgs:
-        org_data = org.get('org', {})
-        identifier = org_data.get('identifier', 'unknown')
-        name = org_data.get('name', identifier)
+        org_data = org.get("org", {})
+        identifier = org_data.get("identifier", "unknown")
+        name = org_data.get("name", identifier)
         values.append((identifier, f"{name} ({identifier})"))
 
     # Show organization selection dialog
@@ -1480,110 +1524,106 @@ def select_organization(client: HarnessAPIClient, context: str) -> Optional[str]
         title=f"Select {context.capitalize()} Organization",
         text=(
             f"Use ↑↓ to navigate, Enter to select, Esc to cancel\n\n"
-            f"Found {len(orgs)} organization(s):"),
-        values=values
+            f"Found {len(orgs)} organization(s):"
+        ),
+        values=values,
     ).run()
 
     if selected:
         # Find the selected org name for display
-        selected_name = next((v[1]
-                             for v in values if v[0] == selected), selected)
+        selected_name = next((v[1] for v in values if v[0] == selected), selected)
         print(f"✓ Selected: {selected_name}")
 
     return selected
 
 
-def select_project(client: HarnessAPIClient, org: str, context: str) -> Optional[str]:  # noqa: E501
+def select_project(
+    client: HarnessAPIClient, org: str, context: str
+) -> Optional[str]:  # noqa: E501
     """Interactive project selection with arrow keys"""
     endpoint = f"/v1/orgs/{org}/projects"
     response = client.get(endpoint)
 
     if response is None:
         message_dialog(
-            title="Error",
-            text=f"Failed to retrieve projects from {context}"
+            title="Error", text=f"Failed to retrieve projects from {context}"
         ).run()
         return None
 
     # Handle both direct array format and wrapped content format
     if isinstance(response, list):
         projects = response
-    elif 'content' in response:
-        projects = response.get('content', [])
+    elif "content" in response:
+        projects = response.get("content", [])
     else:
         message_dialog(
-            title="Error",
-            text=f"Unexpected response format from {context}"
+            title="Error", text=f"Unexpected response format from {context}"
         ).run()
         return None
 
     if not projects:
         message_dialog(
-            title="No Projects",
-            text=f"No projects found in organization '{org}'"
+            title="No Projects", text=f"No projects found in organization '{org}'"
         ).run()
         return None
 
     # Build values for radiolist with pipeline counts (without Back option)
     values = []
     for project in projects:
-        proj_data = project.get('project', {})
-        identifier = proj_data.get('identifier', 'unknown')
-        name = proj_data.get('name', identifier)
+        proj_data = project.get("project", {})
+        identifier = proj_data.get("identifier", "unknown")
+        name = proj_data.get("name", identifier)
 
         # Get pipeline count for this project
         pipeline_endpoint = f"/v1/orgs/{org}/projects/{identifier}/pipelines"
         pipeline_response = client.get(pipeline_endpoint)
 
-        if pipeline_response is not None and isinstance(pipeline_response, list):  # noqa: E501
+        if pipeline_response is not None and isinstance(
+            pipeline_response, list
+        ):  # noqa: E501
             pipeline_count = len(pipeline_response)
         else:
             pipeline_count = 0
 
         values.append(
-            (identifier, f"{name} ({identifier}) - {pipeline_count} pipelines"))  # noqa: E501
+            (identifier, f"{name} ({identifier}) - {pipeline_count} pipelines")
+        )  # noqa: E501
 
     selected = radiolist_dialog(
         title=f"Select {context.capitalize()} Project",
         text=(
             f"Use arrow keys to navigate, Enter to select\n\n"
-            f"Found {len(projects)} project(s) in '{org}':"),
-        values=values
+            f"Found {len(projects)} project(s) in '{org}':"
+        ),
+        values=values,
     ).run()
 
     if selected:
-        selected_name = next((v[1]
-                             for v in values if v[0] == selected), selected)
+        selected_name = next((v[1] for v in values if v[0] == selected), selected)
         print(f"✓ Selected: {selected_name}")
 
     return selected
 
 
 def select_pipelines(
-        client: HarnessAPIClient, org: str, project: str
+    client: HarnessAPIClient, org: str, project: str
 ) -> Union[List[Dict], str, None]:
     """Interactive pipeline selection with arrow keys and space to multi-select"""  # noqa: E501
     endpoint = f"/v1/orgs/{org}/projects/{project}/pipelines"
     response = client.get(endpoint)
 
     if response is None:
-        message_dialog(
-            title="Error",
-            text="Failed to retrieve pipelines"
-        ).run()
+        message_dialog(title="Error", text="Failed to retrieve pipelines").run()
         return []
 
     # Handle both direct array format and wrapped content format
     if isinstance(response, list):
         pipelines = response
-    elif 'content' in response:
-        pipelines = response.get('content', [])
+    elif "content" in response:
+        pipelines = response.get("content", [])
     else:
-        message_dialog(
-            title="Error",
-            text="Unexpected response format"
-        ).run()
-        return 'ERROR'  # Return error indicator instead of empty list
+        message_dialog(title="Error", text="Unexpected response format").run()
+        return "ERROR"  # Return error indicator instead of empty list
 
     if not pipelines:
         choice = button_dialog(
@@ -1595,15 +1635,15 @@ def select_pipelines(
                 "• Continue with empty selection (skip pipelines)"
             ),
             buttons=[
-                ('back', '← Go Back to Project Selection'),
-                ('continue', 'Continue with No Pipelines'),
-                ('cancel', 'Cancel Migration')
-            ]
+                ("back", "← Go Back to Project Selection"),
+                ("continue", "Continue with No Pipelines"),
+                ("cancel", "Cancel Migration"),
+            ],
         ).run()
 
-        if choice == 'back':
-            return 'BACK_TO_PROJECTS'  # Special return value to indicate going back  # noqa: E501
-        elif choice == 'continue':
+        if choice == "back":
+            return "BACK_TO_PROJECTS"  # Special return value to indicate going back  # noqa: E501
+        elif choice == "continue":
             return []  # Empty list to continue with no pipelines
         else:
             return None  # Cancel
@@ -1611,23 +1651,24 @@ def select_pipelines(
     # Build values for checkboxlist (without Back option)
     values = []
     for pipeline in pipelines:
-        identifier = pipeline.get('identifier', 'unknown')
-        name = pipeline.get('name', identifier)
+        identifier = pipeline.get("identifier", "unknown")
+        name = pipeline.get("name", identifier)
         values.append((identifier, f"{name} ({identifier})"))
 
     selected_ids = checkboxlist_dialog(
         title="Select Pipelines to Migrate",
         text=(
             f"Use arrow keys to navigate, Space to select/deselect, "
-            f"Enter to confirm\n\nFound {len(pipelines)} pipeline(s):"),  # noqa: E501
-        values=values
+            f"Enter to confirm\n\nFound {len(pipelines)} pipeline(s):"
+        ),  # noqa: E501
+        values=values,
     ).run()
 
     if not selected_ids:
         return []
 
     # Get full pipeline objects for selected IDs
-    selected = [p for p in pipelines if p.get('identifier') in selected_ids]
+    selected = [p for p in pipelines if p.get("identifier") in selected_ids]
 
     print(f"✓ Selected {len(selected)} pipeline(s):")
     for p in selected:
@@ -1637,7 +1678,7 @@ def select_pipelines(
 
 
 def select_or_create_organization(
-        client: HarnessAPIClient, source_org: str, context: str
+    client: HarnessAPIClient, source_org: str, context: str
 ) -> Optional[tuple]:
     """Interactive organization selection or creation with arrow keys
 
@@ -1651,13 +1692,12 @@ def select_or_create_organization(
         # Handle both direct array format and wrapped content format
         if isinstance(response, list):
             existing_orgs = response
-        elif 'content' in response:
-            existing_orgs = response.get('content', [])
+        elif "content" in response:
+            existing_orgs = response.get("content", [])
 
     # Check if source org exists
     source_org_exists = any(
-        org.get('org', {}).get('identifier') == source_org
-        for org in existing_orgs
+        org.get("org", {}).get("identifier") == source_org for org in existing_orgs
     )
 
     # Build combined options list:
@@ -1668,80 +1708,71 @@ def select_or_create_organization(
 
     # Option 1: Create matching org (only if source org doesn't exist)
     if not source_org_exists:
-        values.append(
-            ('CREATE_MATCHING',
-             f"➕ Create '{source_org}' (same as source)"))
+        values.append(("CREATE_MATCHING", f"➕ Create '{source_org}' (same as source)"))
 
     # Option 2: Create custom org
-    values.append(
-        ('CREATE_CUSTOM', "➕ Create new organization with custom name"))
+    values.append(("CREATE_CUSTOM", "➕ Create new organization with custom name"))
 
     # Option 3: Existing organizations
     for org in existing_orgs:
-        org_data = org.get('org', {})
-        identifier = org_data.get('identifier', 'unknown')
-        name = org_data.get('name', identifier)
+        org_data = org.get("org", {})
+        identifier = org_data.get("identifier", "unknown")
+        name = org_data.get("name", identifier)
         values.append((identifier, f"{name} ({identifier})"))
 
     choice = radiolist_dialog(
         title=f"Select {context.capitalize()} Organization",
         text=(
-            "Use ↑↓ to navigate, Enter to select, Esc to cancel\n\n"
-            "Select an option:"),
-        values=values
+            "Use ↑↓ to navigate, Enter to select, Esc to cancel\n\n" "Select an option:"
+        ),
+        values=values,
     ).run()
 
     if not choice:
         return None
 
     # Handle create matching org
-    if choice == 'CREATE_MATCHING':
+    if choice == "CREATE_MATCHING":
         print(f"\nCreating organization '{source_org}'...")
-        result = client.post("/v1/orgs", json={
-            "org": {
-                "identifier": source_org,
-                "name": source_org
-            }
-        })
+        result = client.post(
+            "/v1/orgs", json={"org": {"identifier": source_org, "name": source_org}}
+        )
         if result:
             print(f"✓ Organization '{source_org}' created successfully")
             return (source_org, True)  # Return tuple: (org_id, was_created)
         else:
             message_dialog(
-                title="Error",
-                text=f"Failed to create organization '{source_org}'"
+                title="Error", text=f"Failed to create organization '{source_org}'"
             ).run()
             return None
 
     # Handle create custom
-    elif choice == 'CREATE_CUSTOM':
+    elif choice == "CREATE_CUSTOM":
         print()
         org_id = prompt("Enter organization identifier: ").strip()
-        org_name = prompt(
-            "Enter organization name (or press Enter for same as identifier): "
-        ).strip() or org_id
+        org_name = (
+            prompt(
+                "Enter organization name (or press Enter for same as identifier): "
+            ).strip()
+            or org_id
+        )
 
         if not org_id:
             message_dialog(
-                title="Error",
-                text="Organization identifier is required"
+                title="Error", text="Organization identifier is required"
             ).run()
             return None
 
         print(f"\nCreating organization '{org_name}'...")
-        result = client.post("/v1/orgs", json={
-            "org": {
-                "identifier": org_id,
-                "name": org_name
-            }
-        })
+        result = client.post(
+            "/v1/orgs", json={"org": {"identifier": org_id, "name": org_name}}
+        )
         if result:
             print(f"✓ Organization '{org_name}' created successfully")
             return (org_id, True)  # Return tuple: (org_id, was_created)
         else:
             message_dialog(
-                title="Error",
-                text=f"Failed to create organization '{org_name}'"
+                title="Error", text=f"Failed to create organization '{org_name}'"
             ).run()
             return None
 
@@ -1750,8 +1781,11 @@ def select_or_create_organization(
 
 
 def select_or_create_project(
-        client: HarnessAPIClient, org: str, source_project: str, context: str,
-        force_create: bool = False
+    client: HarnessAPIClient,
+    org: str,
+    source_project: str,
+    context: str,
+    force_create: bool = False,
 ) -> Optional[str]:
     """Interactive project selection or creation with arrow keys
 
@@ -1766,31 +1800,31 @@ def select_or_create_project(
         # Handle both direct array format and wrapped content format
         if isinstance(response, list):
             existing_projects = response
-        elif 'content' in response:
-            existing_projects = response.get('content', [])
+        elif "content" in response:
+            existing_projects = response.get("content", [])
 
     # If force_create is True, only show creation options
     if force_create:
         values = []
         # Only show create matching and create custom options
         values.append(
-            ('CREATE_MATCHING',
-             f"➕ Create '{source_project}' (same as source)"))
-        values.append(
-            ('CREATE_CUSTOM', "➕ Create new project with custom name"))
+            ("CREATE_MATCHING", f"➕ Create '{source_project}' (same as source)")
+        )
+        values.append(("CREATE_CUSTOM", "➕ Create new project with custom name"))
 
         choice = radiolist_dialog(
             title=f"Create {context.capitalize()} Project",
             text=(
                 "Use ↑↓ to navigate, Enter to select, Esc to cancel\n\n"
                 "Organization was just created - "
-                "select how to create project:"),
-            values=values
+                "select how to create project:"
+            ),
+            values=values,
         ).run()
     else:
         # Check if source project exists
         source_project_exists = any(
-            proj.get('project', {}).get('identifier') == source_project
+            proj.get("project", {}).get("identifier") == source_project
             for proj in existing_projects
         )
 
@@ -1803,81 +1837,79 @@ def select_or_create_project(
         # Option 1: Create matching project (only if doesn't exist)
         if not source_project_exists:
             values.append(
-                ('CREATE_MATCHING',
-                 f"➕ Create '{source_project}' (same as source)"))
+                ("CREATE_MATCHING", f"➕ Create '{source_project}' (same as source)")
+            )
 
         # Option 2: Create custom project
-        values.append(
-            ('CREATE_CUSTOM', "➕ Create new project with custom name"))
+        values.append(("CREATE_CUSTOM", "➕ Create new project with custom name"))
 
         # Option 3: Existing projects
         for project in existing_projects:
-            proj_data = project.get('project', {})
-            identifier = proj_data.get('identifier', 'unknown')
-            name = proj_data.get('name', identifier)
+            proj_data = project.get("project", {})
+            identifier = proj_data.get("identifier", "unknown")
+            name = proj_data.get("name", identifier)
             values.append((identifier, f"{name} ({identifier})"))
 
         choice = radiolist_dialog(
             title=f"Select {context.capitalize()} Project",
             text=(
                 "Use ↑↓ to navigate, Enter to select, Esc to cancel\n\n"
-                "Select an option:"),
-            values=values
+                "Select an option:"
+            ),
+            values=values,
         ).run()
 
     if not choice:
         return None
 
     # Handle create matching project
-    if choice == 'CREATE_MATCHING':
+    if choice == "CREATE_MATCHING":
         print(f"\nCreating project '{source_project}'...")
-        result = client.post(f"/v1/orgs/{org}/projects", json={
-            "project": {
-                "identifier": source_project,
-                "name": source_project,
-                "org": org
-            }
-        })
+        result = client.post(
+            f"/v1/orgs/{org}/projects",
+            json={
+                "project": {
+                    "identifier": source_project,
+                    "name": source_project,
+                    "org": org,
+                }
+            },
+        )
         if result:
             print(f"✓ Project '{source_project}' created successfully")
             return source_project
         else:
             message_dialog(
-                title="Error",
-                text=f"Failed to create project '{source_project}'"
+                title="Error", text=f"Failed to create project '{source_project}'"
             ).run()
             return None
 
     # Handle create custom
-    elif choice == 'CREATE_CUSTOM':
+    elif choice == "CREATE_CUSTOM":
         print()
         proj_id = prompt("Enter project identifier: ").strip()
-        proj_name = prompt(
-            "Enter project name (or press Enter for same as identifier): "
-        ).strip() or proj_id
+        proj_name = (
+            prompt(
+                "Enter project name (or press Enter for same as identifier): "
+            ).strip()
+            or proj_id
+        )
 
         if not proj_id:
-            message_dialog(
-                title="Error",
-                text="Project identifier is required"
-            ).run()
+            message_dialog(title="Error", text="Project identifier is required").run()
             return None
 
         print(f"\nCreating project '{proj_name}'...")
-        result = client.post(f"/v1/orgs/{org}/projects", json={
-            "project": {
-                "identifier": proj_id,
-                "name": proj_name,
-                "org": org
-            }
-        })
+        result = client.post(
+            f"/v1/orgs/{org}/projects",
+            json={"project": {"identifier": proj_id, "name": proj_name, "org": org}},
+        )
         if result:
             print(f"✓ Project '{proj_name}' created successfully")
             return proj_id
         else:
             message_dialog(
-                title="Error",
-                text=f"Failed to create project '{proj_name}'"
+                title="Error", text=f"Failed to create project '{proj_name}'"
             ).run()
             return None
 
@@ -1888,7 +1920,7 @@ def select_or_create_project(
 def main():
     """Main entry point"""
     parser = argparse.ArgumentParser(
-        description='Migrate Harness pipelines between accounts',
+        description="Migrate Harness pipelines between accounts",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Usage Examples:
@@ -1923,32 +1955,30 @@ Configuration File Format (supports JSONC with comments):
     "skip_existing": true
   }
 }
-        """
+        """,
     )
 
     parser.add_argument(
-        '--config',
+        "--config",
         type=str,
-        default='config.json',
-        help='Path to configuration JSON/JSONC file (default: config.json)'
+        default="config.json",
+        help="Path to configuration JSON/JSONC file (default: config.json)",
     )
 
     parser.add_argument(
-        '--dry-run',
-        action='store_true',
-        help='Perform a dry run without making changes'
+        "--dry-run",
+        action="store_true",
+        help="Perform a dry run without making changes",
     )
 
     parser.add_argument(
-        '--debug',
-        action='store_true',
-        help='Enable debug logging for troubleshooting'
+        "--debug", action="store_true", help="Enable debug logging for troubleshooting"
     )
 
     parser.add_argument(
-        '--non-interactive',
-        action='store_true',
-        help='Skip prompts and use all values from config file (no dialogs)'
+        "--non-interactive",
+        action="store_true",
+        help="Skip prompts and use all values from config file (no dialogs)",
     )
 
     args = parser.parse_args()
@@ -1970,5 +2000,5 @@ Configuration File Format (supports JSONC with comments):
     sys.exit(0 if success else 1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
