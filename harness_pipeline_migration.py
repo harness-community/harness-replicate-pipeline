@@ -751,12 +751,18 @@ class HarnessMigrator:
                 ],
             ).run()
 
+            logger.debug("  Dialog returned: %s", choice)
             if choice == "skip":
                 logger.info("  ⊘ Skipping pipeline due to missing templates")
                 return None  # Skip pipeline
             elif choice == "migrate":
+                logger.info("  → User chose to migrate templates")
                 return True
-            else:  # skip_templates or default
+            elif choice == "skip_templates":
+                logger.info("  → User chose to skip templates")
+                return False
+            else:
+                logger.warning("  ⚠ Unexpected dialog result: %s, defaulting to skip templates", choice)
                 return False
 
         except (EOFError, KeyboardInterrupt, OSError, ValueError) as e:
