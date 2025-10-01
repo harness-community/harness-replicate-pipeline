@@ -718,6 +718,7 @@ class HarnessMigrator:
                         # This can be set via --non-interactive flag or config
                         interactive = not self.config.get(
                             'non_interactive', False)
+                        logger.debug(f"Template migration: auto_migrate={auto_migrate}, interactive={interactive}, non_interactive={self.config.get('non_interactive', 'NOT SET')}")
                         
 
                         # In interactive mode, ask user what to do
