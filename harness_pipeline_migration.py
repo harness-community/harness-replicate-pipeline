@@ -437,3 +437,77 @@ class HarnessMigrator:
             logger.error("  ✗ Failed to create template in destination")
             self.migration_stats['templates']['failed'] += 1
             return False
+
+    def verify_prerequisites(self) -> bool:
+        """Verify that destination org and project exist"""
+        logger.info("Verifying destination org and project...")
+
+        # Check if in dry run mode
+        dry_run = self.config.get('dry_run', False)
+
+        # Check organization
+        org_endpoint = f"/v1/orgs/{self.dest_org}"
+        org_response = self.dest_client.get(org_endpoint)
+
+        if not org_response:
+            logger.error(
+                "Destination organization '%s' does not exist", self.dest_org)
+
+            if dry_run:
+                logger.info(
+                    "[DRY RUN] Would create organization '%s'", self.dest_org)
+                logger.info(
+                    "Organization '%s' would be created successfully",
+                    self.dest_org)
+            else:
+                logger.info("Creating organization...")
+
+                create_org = self.dest_client.post("/v1/orgs", json={
+                    "org": {
+                        "identifier": self.dest_org,
+                        "name": self.dest_org
+                    }
+                })
+
+                if not create_org:
+                    logger.error("Failed to create organization")
+                    return False
+                logger.info(
+                    "Organization '%s' created successfully", self.dest_org)
+
+        # Check project
+        project_endpoint = (
+            f"/v1/orgs/{self.dest_org}/projects/{self.dest_project}")
+        project_response = self.dest_client.get(project_endpoint)
+
+        if not project_response:
+            logger.error(
+                "Destination project '%s' does not exist", self.dest_project)
+
+            if dry_run:
+                logger.info(
+                    "[DRY RUN] Would create project '%s'", self.dest_project)
+                logger.info(
+                    "Project '%s' would be created successfully",
+                    self.dest_project)
+            else:
+                logger.info("Creating project...")
+
+                create_project = self.dest_client.post(
+                    f"/v1/orgs/{self.dest_org}/projects",
+                    json={
+                        "project": {
+                            "identifier": self.dest_project,
+                            "name": self.dest_project,
+                            "org": self.dest_org
+                        }
+                    }
+                )
+
+                if not create_project:
+                    logger.error("Failed to create project")
+                    return False
+                logger.info(
+                    "Project '%s' created successfully", self.dest_project)
+
+        return True
