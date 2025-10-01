@@ -511,3 +511,84 @@ class HarnessMigrator:
                     "Project '%s' created successfully", self.dest_project)
 
         return True
+
+    def migrate_input_sets(self, pipeline_id: str) -> bool:
+        """Migrate input sets for a specific pipeline"""
+        logger.info("  Checking for input sets for pipeline: %s", pipeline_id)
+
+        # Check if in dry run mode
+        dry_run = self.config.get('dry_run', False)
+
+        # List input sets
+        endpoint = (
+            f"/v1/orgs/{self.source_org}/projects/{self.source_project}/"
+            f"input-sets")
+        params = {'pipelineIdentifier': pipeline_id}
+
+        input_sets_response = self.source_client.get(endpoint, params=params)
+
+        if input_sets_response is None:
+            logger.info("  No input sets found for pipeline: %s", pipeline_id)
+            return True
+
+        # Handle both direct array format and wrapped content format
+        if isinstance(input_sets_response, list):
+            input_sets = input_sets_response
+        elif 'content' in input_sets_response:
+            input_sets = input_sets_response.get('content', [])
+        else:
+            logger.info(
+                "  Unexpected response format when retrieving input sets")
+            return True
+        if input_sets:
+            logger.info("  Migrating %d input sets...", len(input_sets))
+
+        for input_set in input_sets:
+            input_set_id = input_set.get('identifier')
+            input_set_name = input_set.get('name', input_set_id)
+
+            logger.info("  Migrating input set: %s", input_set_name)
+
+            # Get full input set details
+            get_endpoint = (
+                f"/v1/orgs/{self.source_org}/projects/{self.source_project}/"
+                f"input-sets/{input_set_id}")
+            params = {'pipelineIdentifier': pipeline_id}
+            input_set_details = self.source_client.get(
+                get_endpoint, params=params)
+
+            if not input_set_details:
+                logger.error(
+                    "  Failed to get details for input set: %s", input_set_id)
+                self.migration_stats['input_sets']['failed'] += 1
+                continue
+
+            # Create input set in destination
+            create_endpoint = (
+                f"/v1/orgs/{self.dest_org}/projects/{self.dest_project}/"
+                f"input-sets")
+            params = {'pipelineIdentifier': pipeline_id}
+
+            if dry_run:
+                logger.info(
+                    "  [DRY RUN] Would create input set '%s'", input_set_name)
+                result = True  # Simulate success
+            else:
+                result = self.dest_client.post(
+                    create_endpoint,
+                    params=params,
+                    json=input_set_details
+                )
+
+            if result:
+                logger.info(
+                    "  ✓ Input set '%s' migrated successfully", input_set_name)
+                self.migration_stats['input_sets']['success'] += 1
+            else:
+                logger.error(
+                    "  ✗ Failed to migrate input set: %s", input_set_name)
+                self.migration_stats['input_sets']['failed'] += 1
+
+            time.sleep(0.3)
+
+        return True
