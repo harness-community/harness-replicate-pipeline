@@ -1353,3 +1353,203 @@ def _get_selections_from_clients(source_client, dest_client, base_config,
             print(f"✗ Failed to save configuration to {config_file}")
 
     return config
+
+
+def select_organization(client: HarnessAPIClient, context: str) -> Optional[str]:  # noqa: E501
+    """Interactive organization selection with arrow keys"""
+    response = client.get("/v1/orgs")
+
+    if response is None:
+        message_dialog(
+            title="Error",
+            text=f"Failed to retrieve organizations from {context}"
+        ).run()
+        return None
+
+    # Handle both direct array format and wrapped content format
+    if isinstance(response, list):
+        orgs = response
+    elif 'content' in response:
+        orgs = response.get('content', [])
+    else:
+        message_dialog(
+            title="Error",
+            text=f"Unexpected response format from {context}"
+        ).run()
+        return None
+
+    if not orgs:
+        message_dialog(
+            title="No Organizations",
+            text=f"No organizations found in {context} account"
+        ).run()
+        return None
+
+    # Build values for radiolist (without Back option)
+    values = []
+    for org in orgs:
+        org_data = org.get('org', {})
+        identifier = org_data.get('identifier', 'unknown')
+        name = org_data.get('name', identifier)
+        values.append((identifier, f"{name} ({identifier})"))
+
+    # Show organization selection dialog
+    # Note: Esc key cancels and returns None
+    selected = radiolist_dialog(
+        title=f"Select {context.capitalize()} Organization",
+        text=(
+            f"Use ↑↓ to navigate, Enter to select, Esc to cancel\n\n"
+            f"Found {len(orgs)} organization(s):"),
+        values=values
+    ).run()
+
+    if selected:
+        # Find the selected org name for display
+        selected_name = next((v[1]
+                             for v in values if v[0] == selected), selected)
+        print(f"✓ Selected: {selected_name}")
+
+    return selected
+
+
+def select_project(client: HarnessAPIClient, org: str, context: str) -> Optional[str]:  # noqa: E501
+    """Interactive project selection with arrow keys"""
+    endpoint = f"/v1/orgs/{org}/projects"
+    response = client.get(endpoint)
+
+    if response is None:
+        message_dialog(
+            title="Error",
+            text=f"Failed to retrieve projects from {context}"
+        ).run()
+        return None
+
+    # Handle both direct array format and wrapped content format
+    if isinstance(response, list):
+        projects = response
+    elif 'content' in response:
+        projects = response.get('content', [])
+    else:
+        message_dialog(
+            title="Error",
+            text=f"Unexpected response format from {context}"
+        ).run()
+        return None
+
+    if not projects:
+        message_dialog(
+            title="No Projects",
+            text=f"No projects found in organization '{org}'"
+        ).run()
+        return None
+
+    # Build values for radiolist with pipeline counts (without Back option)
+    values = []
+    for project in projects:
+        proj_data = project.get('project', {})
+        identifier = proj_data.get('identifier', 'unknown')
+        name = proj_data.get('name', identifier)
+
+        # Get pipeline count for this project
+        pipeline_endpoint = f"/v1/orgs/{org}/projects/{identifier}/pipelines"
+        pipeline_response = client.get(pipeline_endpoint)
+
+        if pipeline_response is not None and isinstance(pipeline_response, list):  # noqa: E501
+            pipeline_count = len(pipeline_response)
+        else:
+            pipeline_count = 0
+
+        values.append(
+            (identifier, f"{name} ({identifier}) - {pipeline_count} pipelines"))  # noqa: E501
+
+    selected = radiolist_dialog(
+        title=f"Select {context.capitalize()} Project",
+        text=(
+            f"Use arrow keys to navigate, Enter to select\n\n"
+            f"Found {len(projects)} project(s) in '{org}':"),
+        values=values
+    ).run()
+
+    if selected:
+        selected_name = next((v[1]
+                             for v in values if v[0] == selected), selected)
+        print(f"✓ Selected: {selected_name}")
+
+    return selected
+
+
+def select_pipelines(
+        client: HarnessAPIClient, org: str, project: str
+) -> Union[List[Dict], str, None]:
+    """Interactive pipeline selection with arrow keys and space to multi-select"""  # noqa: E501
+    endpoint = f"/v1/orgs/{org}/projects/{project}/pipelines"
+    response = client.get(endpoint)
+
+    if response is None:
+        message_dialog(
+            title="Error",
+            text="Failed to retrieve pipelines"
+        ).run()
+        return []
+
+    # Handle both direct array format and wrapped content format
+    if isinstance(response, list):
+        pipelines = response
+    elif 'content' in response:
+        pipelines = response.get('content', [])
+    else:
+        message_dialog(
+            title="Error",
+            text="Unexpected response format"
+        ).run()
+        return 'ERROR'  # Return error indicator instead of empty list
+
+    if not pipelines:
+        choice = button_dialog(
+            title="No Pipelines Found",
+            text=(
+                "No pipelines found in the selected project.\n\n"
+                "Would you like to:\n"
+                "• Go back and select a different project\n"
+                "• Continue with empty selection (skip pipelines)"
+            ),
+            buttons=[
+                ('back', '← Go Back to Project Selection'),
+                ('continue', 'Continue with No Pipelines'),
+                ('cancel', 'Cancel Migration')
+            ]
+        ).run()
+
+        if choice == 'back':
+            return 'BACK_TO_PROJECTS'  # Special return value to indicate going back  # noqa: E501
+        elif choice == 'continue':
+            return []  # Empty list to continue with no pipelines
+        else:
+            return None  # Cancel
+
+    # Build values for checkboxlist (without Back option)
+    values = []
+    for pipeline in pipelines:
+        identifier = pipeline.get('identifier', 'unknown')
+        name = pipeline.get('name', identifier)
+        values.append((identifier, f"{name} ({identifier})"))
+
+    selected_ids = checkboxlist_dialog(
+        title="Select Pipelines to Migrate",
+        text=(
+            f"Use arrow keys to navigate, Space to select/deselect, "
+            f"Enter to confirm\n\nFound {len(pipelines)} pipeline(s):"),  # noqa: E501
+        values=values
+    ).run()
+
+    if not selected_ids:
+        return []
+
+    # Get full pipeline objects for selected IDs
+    selected = [p for p in pipelines if p.get('identifier') in selected_ids]
+
+    print(f"✓ Selected {len(selected)} pipeline(s):")
+    for p in selected:
+        print(f"   - {p.get('name', p.get('identifier'))}")
+
+    return selected
