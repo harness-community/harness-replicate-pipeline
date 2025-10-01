@@ -216,3 +216,30 @@ class HarnessAPIClient:
     def delete(self, endpoint: str, **kwargs) -> Optional[Dict]:
         """DELETE request"""
         return self._make_request('DELETE', endpoint, **kwargs)
+
+
+class HarnessMigrator:
+    """Main migration orchestrator"""
+
+    def __init__(self, config: Dict):
+        self.config = config
+        self.source_client = HarnessAPIClient(
+            config['source']['base_url'],
+            config['source']['api_key']
+        )
+        self.dest_client = HarnessAPIClient(
+            config['destination']['base_url'],
+            config['destination']['api_key']
+        )
+
+        self.source_org = config['source']['org']
+        self.source_project = config['source']['project']
+        self.dest_org = config['destination']['org']
+        self.dest_project = config['destination']['project']
+
+        self.migration_stats = {
+            'pipelines': {'success': 0, 'failed': 0},
+            'input_sets': {'success': 0, 'failed': 0},
+            'templates': {'success': 0, 'failed': 0}
+        }
+        self.discovered_templates = set()  # Track templates found in pipelines
