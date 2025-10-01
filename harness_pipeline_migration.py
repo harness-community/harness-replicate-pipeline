@@ -20,6 +20,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Union
 
 import requests
+import yaml
 
 # For interactive mode with arrow key navigation
 from prompt_toolkit import prompt
@@ -171,19 +172,41 @@ class HarnessMigrator:
         
         Returns list of tuples: (templateRef, versionLabel)
         """
-        import re
         templates = []
         
-        # Pattern to match templateRef and versionLabel
-        # Looks for: templateRef: <identifier> followed by versionLabel: "<version>"
-        pattern = r'templateRef:\s*(\S+)\s+versionLabel:\s*["\']?([^"\'\n]+)["\']?'
-        matches = re.findall(pattern, yaml_content)
-        
-        for template_ref, version_label in matches:
-            templates.append((template_ref, version_label))
-            self.discovered_templates.add((template_ref, version_label))
+        # Parse YAML to find template references
+        # Template refs can appear at various levels in the YAML structure
+        try:
+            pipeline_dict = yaml.safe_load(yaml_content)
+            self._find_template_refs(pipeline_dict, templates)
+        except Exception as e:
+            logger.warning("Could not parse YAML to extract templates: %s", e)
+            # Fallback to regex if YAML parsing fails
+            # Pattern matches templateRef and versionLabel on same or adjacent lines
+            pattern = r'templateRef:\s*(\S+).*?versionLabel:\s*["\']?([^"\'\s]+)["\']?'
+            matches = re.findall(pattern, yaml_content, re.DOTALL)
+            for template_ref, version_label in matches:
+                templates.append((template_ref, version_label))
+                self.discovered_templates.add((template_ref, version_label))
         
         return templates
+    
+    def _find_template_refs(self, obj, templates):
+        """Recursively find template references in YAML structure"""
+        if isinstance(obj, dict):
+            # Check if this dict has both templateRef and versionLabel
+            if 'templateRef' in obj and 'versionLabel' in obj:
+                template_ref = obj['templateRef']
+                version_label = str(obj['versionLabel'])
+                templates.append((template_ref, version_label))
+                self.discovered_templates.add((template_ref, version_label))
+            # Recurse into dict values
+            for value in obj.values():
+                self._find_template_refs(value, templates)
+        elif isinstance(obj, list):
+            # Recurse into list items
+            for item in obj:
+                self._find_template_refs(item, templates)
 
     def list_templates(
             self, org: str, project: str,
@@ -325,7 +348,6 @@ class HarnessMigrator:
             return False
 
         # Parse and update the YAML to use destination org/project
-        import yaml  # noqa: F401
         try:
             template_dict = yaml.safe_load(template_yaml)
             if 'template' in template_dict:
