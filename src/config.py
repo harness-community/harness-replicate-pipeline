@@ -6,6 +6,7 @@ Handles loading, saving, and managing configuration files.
 
 import json
 import logging
+import os
 import re
 from typing import Any, Dict
 
@@ -13,24 +14,61 @@ logger = logging.getLogger(__name__)
 
 
 def load_config(config_file: str) -> Dict[str, Any]:
-    """Load configuration from JSON file, handling JSONC comments"""
+    """Load configuration from JSON file, handling JSONC comments and environment variable overrides
+    
+    Always tries to load config file (may not exist), uses as defaults.
+    Always tries to load environment variables (may not exist), overrides existing values.
+    """
+    config = {}
+    
+    # Step 1: Try to load config file (may not exist)
     try:
         with open(config_file, "r", encoding="utf-8") as f:
             content = f.read()
 
         # Remove JSONC comments (// and /* */)
-        # Simple approach: only remove // comments that start at beginning of line or after whitespace
         content = re.sub(r'^\s*//.*$', '', content, flags=re.MULTILINE)
         content = re.sub(r'/\*.*?\*/', '', content, flags=re.DOTALL)
 
-        return json.loads(content)
-    except (FileNotFoundError, json.JSONDecodeError, UnicodeDecodeError) as e:
-        logger.error("Failed to load config file '%s': %s", config_file, e)
-        return {}
+        config = json.loads(content)
+        logger.info("Configuration loaded from %s", config_file)
+        
+    except FileNotFoundError:
+        logger.info("Config file '%s' not found, starting with empty config", config_file)
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        logger.error("Failed to parse config file '%s': %s", config_file, e)
+        logger.info("Starting with empty config due to parse error")
+    
+    # Step 2: Always apply environment variable overrides (may not exist)
+    config = _apply_env_overrides(config)
+    
+    return config
+
+
+def _apply_env_overrides(config: Dict[str, Any]) -> Dict[str, Any]:
+    """Apply environment variable overrides to configuration (step 2 in priority order)"""
+    # Boolean options with environment variable support
+    env_mappings = {
+        "HARNESS_SKIP_INPUT_SETS": ("options", "skip_input_sets"),
+        "HARNESS_SKIP_TRIGGERS": ("options", "skip_triggers"),
+        "HARNESS_SKIP_TEMPLATES": ("options", "skip_templates"),
+        "HARNESS_UPDATE_EXISTING": ("options", "update_existing"),
+    }
+    
+    for env_var, (section, key) in env_mappings.items():
+        env_value = os.getenv(env_var)
+        if env_value is not None:
+            # Convert string to boolean
+            bool_value = env_value.lower() in ('true', '1', 'yes', 'on')
+            config.setdefault(section, {})[key] = bool_value
+            logger.info("Environment override: %s=%s -> %s.%s=%s",
+                        env_var, env_value, section, key, bool_value)
+    
+    return config
 
 
 def save_config(config: Dict[str, Any], config_file: str) -> bool:
-    """Save configuration to JSON file"""
+    """Save current configuration state in memory to JSON file"""
     try:
         with open(config_file, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
@@ -41,7 +79,11 @@ def save_config(config: Dict[str, Any], config_file: str) -> bool:
 
 
 def apply_cli_overrides(config: Dict[str, Any], args) -> Dict[str, Any]:
-    """Apply CLI argument overrides to config with priority: config file > CLI args > interactive"""
+    """Apply CLI argument overrides to configuration (step 3 in priority order)
+    
+    Priority: Config file > Environment Variables > CLI arguments > Interactive prompts
+    This function applies CLI arguments to config that already has env vars applied.
+    """
     # Create a copy to avoid modifying the original
     updated_config = config.copy()
 
@@ -68,24 +110,21 @@ def apply_cli_overrides(config: Dict[str, Any], args) -> Dict[str, Any]:
     # Replication options overrides
     options = updated_config.setdefault("options", {})
 
-    # Handle replicate_input_sets (CLI args override config)
-    if hasattr(args, 'replicate_input_sets') and args.replicate_input_sets:
-        options["replicate_input_sets"] = True
-    elif hasattr(args, 'no_replicate_input_sets') and args.no_replicate_input_sets:
-        options["replicate_input_sets"] = False
+    # Handle skip_input_sets (CLI args override config)
+    if hasattr(args, 'skip_input_sets') and args.skip_input_sets:
+        options["skip_input_sets"] = True
 
-    # Handle replicate_triggers (CLI args override config)
-    # Default is True, only set to False if explicitly disabled
-    if hasattr(args, 'no_replicate_triggers') and args.no_replicate_triggers:
-        options["replicate_triggers"] = False
-    elif hasattr(args, 'replicate_triggers') and args.replicate_triggers:
-        options["replicate_triggers"] = True
+    # Handle skip_triggers (CLI args override config)
+    if hasattr(args, 'skip_triggers') and args.skip_triggers:
+        options["skip_triggers"] = True
 
-    # Handle skip_existing (CLI args override config)
-    if args.skip_existing:
-        options["skip_existing"] = True
-    elif args.no_skip_existing:
-        options["skip_existing"] = False
+    # Handle skip_templates (CLI args override config)
+    if hasattr(args, 'skip_templates') and args.skip_templates:
+        options["skip_templates"] = True
+
+    # Handle update_existing (CLI args override config)
+    if hasattr(args, 'update_existing') and args.update_existing:
+        options["update_existing"] = True
 
     # Handle pipeline specifications from CLI
     if args.pipelines:
