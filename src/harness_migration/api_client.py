@@ -21,7 +21,7 @@ class HarnessAPIClient:
         self.api_key = api_key
         self.session = requests.Session()
         self.session.headers.update({
-            "Authorization": f"Bearer {api_key}",
+            "x-api-key": api_key,
             "Content-Type": "application/json",
         })
 
@@ -98,12 +98,26 @@ class HarnessAPIClient:
         """Normalize API response to always return a list.
 
         Handles both direct array format and wrapped content format.
+        For Harness API responses, extracts the 'org' or 'project' data from each item.
         Returns empty list if response is None or invalid.
         """
         if response is None:
             return []
         if isinstance(response, list):
-            return response
+            # Extract 'org' or 'project' data from each item if it exists
+            normalized = []
+            for item in response:
+                if isinstance(item, dict):
+                    # Only extract nested objects, not string fields
+                    if "org" in item and isinstance(item["org"], dict):
+                        normalized.append(item["org"])
+                    elif "project" in item and isinstance(item["project"], dict):
+                        normalized.append(item["project"])
+                    else:
+                        normalized.append(item)
+                else:
+                    normalized.append(item)
+            return normalized
         if isinstance(response, dict) and "content" in response:
             return response.get("content", [])
         return []

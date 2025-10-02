@@ -64,7 +64,7 @@ class HarnessMigrator:
             parts.extend(["orgs", org])
         if project:
             parts.extend(["projects", project])
-        if resource and resource != "orgs":
+        if resource:
             parts.append(resource)
         if resource_id:
             parts.append(resource_id)
