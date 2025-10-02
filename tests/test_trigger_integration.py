@@ -129,16 +129,22 @@ pipeline:
     - stage:
         identifier: stage1
         name: Test Stage
-        type: CI
+        type: Custom
         spec:
           execution:
             steps:
               - step:
                   identifier: step1
                   name: Test Step
-                  type: Run
+                  type: ShellScript
                   spec:
-                    command: echo "Hello from trigger test pipeline"
+                    shell: Bash
+                    source:
+                      type: Inline
+                      spec:
+                        script: echo "Hello from trigger test pipeline"
+                    environmentVariables: []
+                    outputVariables: []
 """
 
         pipeline_data = {
@@ -169,14 +175,29 @@ inputSet:
 """
 
         input_set_data = {
-            "input_set_yaml": input_set_yaml.strip()
+            "input_set_yaml": input_set_yaml.strip(),
+            "identifier": self.test_input_set,
+            "name": self.test_input_set
         }
 
-        result = self.dest_client.post(
+        # Try different potential input set creation endpoints
+        potential_endpoints = [
             f"/v1/orgs/{self.test_org}/projects/{self.test_project}/input-sets",
-            params={"pipeline": self.test_pipeline},
-            json=input_set_data
-        )
+            f"/pipeline/api/inputSets",
+        ]
+        
+        result = None
+        for endpoint in potential_endpoints:
+            try:
+                result = self.dest_client.post(
+                    endpoint,
+                    params={"pipeline": self.test_pipeline},
+                    json=input_set_data
+                )
+                if result is not None:
+                    break
+            except Exception:
+                continue
         assert result is not None, f"Failed to create test input set {self.test_input_set}"
         return result
 
@@ -248,9 +269,8 @@ inputSet:
         """Test creating a trigger and then reading it back"""
         # Create prerequisites
         self._create_test_pipeline()
-        self._create_test_input_set()
 
-        # Create a simple webhook trigger
+        # Create a simple manual trigger (no external dependencies)
         trigger_yaml = f"""
 trigger:
   orgIdentifier: {self.test_org}
@@ -258,31 +278,25 @@ trigger:
   pipelineIdentifier: {self.test_pipeline}
   identifier: {self.test_trigger}
   name: {self.test_trigger}
-  type: Webhook
+  type: Scheduled
   spec:
-    type: Github
+    type: Cron
     spec:
-      type: Push
-      spec:
-        connectorRef: account.Github_OAuth_1234567890123456789
-        autoAbortPreviousExecutions: false
-        payloadConditions: []
-        headerConditions: []
-        repoName: test-repo
-        actions: []
-  inputSetRefs:
-    - {self.test_input_set}
+      expression: "0 0 * * *"
+      timeZone: "America/New_York"
 """
 
         # Test different potential trigger creation endpoints
         potential_create_endpoints = [
+            "/pipeline/api/triggers",
             f"/v1/orgs/{self.test_org}/projects/{self.test_project}/triggers",
-            f"/ng/api/triggers",
         ]
 
-        trigger_data = {
+        # Try both JSON and raw YAML approaches
+        trigger_json_data = {
             "trigger_yaml": trigger_yaml.strip()
         }
+        trigger_yaml_data = trigger_yaml.strip()
 
         created_trigger = None
         successful_endpoint = None
@@ -292,30 +306,48 @@ trigger:
             try:
                 print(f"Testing POST {endpoint}")
                 
-                # Try with pipeline parameter
+                # Try JSON approach with pipeline parameter
                 result = self.dest_client.post(
                     endpoint,
-                    params={"pipeline": self.test_pipeline},
-                    json=trigger_data
+                    params={
+                        "orgIdentifier": self.test_org,
+                        "projectIdentifier": self.test_project,
+                        "targetIdentifier": self.test_pipeline
+                    },
+                    json=trigger_json_data
                 )
                 
                 if result is not None:
-                    print(f"✓ SUCCESS: Created trigger via {endpoint}")
+                    print(f"✓ SUCCESS: Created trigger via {endpoint} (JSON)")
                     created_trigger = result
                     successful_endpoint = endpoint
                     break
                 else:
-                    print(f"✗ FAILED: {endpoint} returned None")
+                    print(f"✗ FAILED: {endpoint} (JSON) returned None")
                     
-                    # Try without pipeline parameter
-                    result = self.dest_client.post(endpoint, json=trigger_data)
-                    if result is not None:
-                        print(f"✓ SUCCESS: Created trigger via {endpoint} (no pipeline param)")
-                        created_trigger = result
+                    # Try YAML approach (like our actual code)
+                    import requests
+                    response = requests.post(
+                        f"{self.dest_url}{endpoint}",
+                        params={
+                            "orgIdentifier": self.test_org,
+                            "projectIdentifier": self.test_project,
+                            "targetIdentifier": self.test_pipeline
+                        },
+                        data=trigger_yaml_data,
+                        headers={
+                            "Content-Type": "application/yaml",
+                            "x-api-key": self.dest_api_key
+                        }
+                    )
+                    
+                    if response.status_code in [200, 201]:
+                        print(f"✓ SUCCESS: Created trigger via {endpoint} (YAML)")
+                        created_trigger = response.json() if response.text else {"success": True}
                         successful_endpoint = endpoint
                         break
                     else:
-                        print(f"✗ FAILED: {endpoint} (no pipeline param) returned None")
+                        print(f"✗ FAILED: {endpoint} (YAML) status {response.status_code}")
                         
             except Exception as e:
                 print(f"✗ ERROR: {endpoint} - {str(e)}")

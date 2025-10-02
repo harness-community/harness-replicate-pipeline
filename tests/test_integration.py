@@ -223,7 +223,7 @@ template:
         migrator = HarnessReplicator(self.config)
 
         # Act
-        result = migrator.verify_prerequisites()
+        result = migrator.prerequisite_handler.verify_prerequisites()
 
         # Assert
         assert result is True, "Prerequisites verification should succeed"
@@ -246,7 +246,7 @@ template:
         migrator = HarnessReplicator(self.config)
 
         # Act
-        result = migrator.verify_prerequisites()
+        result = migrator.prerequisite_handler.verify_prerequisites()
 
         # Assert
         assert result is True, "Prerequisites verification should succeed"
@@ -296,7 +296,8 @@ pipeline:
         migrator.source_client = MockSourceClient()
 
         # Act - This should work in dry run mode
-        result = migrator.migrate_pipelines()
+        result = migrator.pipeline_handler.replicate_pipelines(
+            migrator.template_handler, migrator.inputset_handler, migrator.trigger_handler)
 
         # Assert
         assert result is True, "Migration should succeed in dry run mode"
