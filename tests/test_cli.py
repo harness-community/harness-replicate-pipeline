@@ -7,7 +7,7 @@ Tests command-line interface functionality with proper mocking and AAA methodolo
 from unittest.mock import Mock, patch
 
 from src.harness_migration.cli import (
-    setup_logging, non_interactive_mode, hybrid_mode, main
+    setup_logging, non_interactive_mode, interactive_mode, main
 )
 
 
@@ -181,11 +181,11 @@ class TestNonInteractiveMode:
         mock_exit.assert_called_once_with(1)
 
 
-class TestHybridMode:
-    """Test suite for hybrid_mode function"""
+class TestInteractiveMode:
+    """Test suite for interactive_mode function"""
 
-    def test_hybrid_mode_success(self):
-        """Test hybrid_mode succeeds with valid config"""
+    def test_interactive_mode_success(self):
+        """Test interactive_mode succeeds with valid config"""
         # Arrange
         config_data = {
             "source": {"base_url": "https://app.harness.io", "api_key": "test-key"},
@@ -201,13 +201,13 @@ class TestHybridMode:
         with patch('src.harness_migration.cli.load_config', return_value=config_data):
             with patch('src.harness_migration.cli.HarnessAPIClient'):
                 with patch('src.harness_migration.cli.get_selections_from_clients', return_value=expected_result):
-                    result = hybrid_mode("config.json")
+                    result = interactive_mode("config.json")
 
         # Assert
         assert result == expected_result
 
-    def test_hybrid_mode_missing_source_base_url(self):
-        """Test hybrid_mode fails with missing source base_url"""
+    def test_interactive_mode_missing_source_base_url(self):
+        """Test interactive_mode fails with missing source base_url"""
         # Arrange
         config_data = {
             "source": {"api_key": "test-key"},
@@ -218,15 +218,15 @@ class TestHybridMode:
         with patch('src.harness_migration.cli.load_config', return_value=config_data):
             with patch('src.harness_migration.cli.sys.exit', side_effect=SystemExit) as mock_exit:
                 try:
-                    hybrid_mode("config.json")
+                    interactive_mode("config.json")
                 except SystemExit:
                     pass
 
         # Assert
         mock_exit.assert_called_once_with(1)
 
-    def test_hybrid_mode_missing_source_api_key(self):
-        """Test hybrid_mode fails with missing source api_key"""
+    def test_interactive_mode_missing_source_api_key(self):
+        """Test interactive_mode fails with missing source api_key"""
         # Arrange
         config_data = {
             "source": {"base_url": "https://app.harness.io"},
@@ -237,15 +237,15 @@ class TestHybridMode:
         with patch('src.harness_migration.cli.load_config', return_value=config_data):
             with patch('src.harness_migration.cli.sys.exit', side_effect=SystemExit) as mock_exit:
                 try:
-                    hybrid_mode("config.json")
+                    interactive_mode("config.json")
                 except SystemExit:
                     pass
 
         # Assert
         mock_exit.assert_called_once_with(1)
 
-    def test_hybrid_mode_missing_destination_base_url(self):
-        """Test hybrid_mode fails with missing destination base_url"""
+    def test_interactive_mode_missing_destination_base_url(self):
+        """Test interactive_mode fails with missing destination base_url"""
         # Arrange
         config_data = {
             "source": {"base_url": "https://app.harness.io", "api_key": "test-key"},
@@ -256,15 +256,15 @@ class TestHybridMode:
         with patch('src.harness_migration.cli.load_config', return_value=config_data):
             with patch('src.harness_migration.cli.sys.exit', side_effect=SystemExit) as mock_exit:
                 try:
-                    hybrid_mode("config.json")
+                    interactive_mode("config.json")
                 except SystemExit:
                     pass
 
         # Assert
         mock_exit.assert_called_once_with(1)
 
-    def test_hybrid_mode_missing_destination_api_key(self):
-        """Test hybrid_mode fails with missing destination api_key"""
+    def test_interactive_mode_missing_destination_api_key(self):
+        """Test interactive_mode fails with missing destination api_key"""
         # Arrange
         config_data = {
             "source": {"base_url": "https://app.harness.io", "api_key": "test-key"},
@@ -275,15 +275,15 @@ class TestHybridMode:
         with patch('src.harness_migration.cli.load_config', return_value=config_data):
             with patch('src.harness_migration.cli.sys.exit', side_effect=SystemExit) as mock_exit:
                 try:
-                    hybrid_mode("config.json")
+                    interactive_mode("config.json")
                 except SystemExit:
                     pass
 
         # Assert
         mock_exit.assert_called_once_with(1)
 
-    def test_hybrid_mode_selections_fail(self):
-        """Test hybrid_mode fails when selections fail"""
+    def test_interactive_mode_selections_fail(self):
+        """Test interactive_mode fails when selections fail"""
         # Arrange
         config_data = {
             "source": {"base_url": "https://app.harness.io", "api_key": "test-key"},
@@ -295,19 +295,19 @@ class TestHybridMode:
             with patch('src.harness_migration.cli.HarnessAPIClient'):
                 with patch('src.harness_migration.cli.get_selections_from_clients', return_value={}):
                     with patch('src.harness_migration.cli.sys.exit') as mock_exit:
-                        hybrid_mode("config.json")
+                        interactive_mode("config.json")
 
         # Assert
         mock_exit.assert_called_once_with(1)
 
-    def test_hybrid_mode_config_load_fails(self):
-        """Test hybrid_mode fails when config load fails"""
+    def test_interactive_mode_config_load_fails(self):
+        """Test interactive_mode fails when config load fails"""
         # Arrange
         with patch('src.harness_migration.cli.load_config', return_value={}):
             with patch('src.harness_migration.cli.sys.exit', side_effect=SystemExit) as mock_exit:
                 try:
                     # Act
-                    hybrid_mode("config.json")
+                    interactive_mode("config.json")
                 except SystemExit:
                     pass
 
@@ -340,7 +340,7 @@ class TestMain:
         mock_migrator_class.assert_called_once()
         mock_exit.assert_called_once_with(0)
 
-    def test_main_hybrid_mode(self):
+    def test_main_interactive_mode(self):
         """Test main function in hybrid mode"""
         # Arrange
         test_args = [
@@ -350,7 +350,7 @@ class TestMain:
 
         # Act
         with patch('sys.argv', test_args):
-            with patch('src.harness_migration.cli.hybrid_mode', return_value={"test": "config"}) as mock_hybrid:
+            with patch('src.harness_migration.cli.interactive_mode', return_value={"test": "config"}) as mock_hybrid:
                 with patch('src.harness_migration.cli.apply_cli_overrides', return_value={"test": "config"}):
                     with patch('src.harness_migration.cli.HarnessMigrator') as mock_migrator_class:
                         with patch('src.harness_migration.cli.sys.exit') as mock_exit:
@@ -372,7 +372,7 @@ class TestMain:
 
         # Act
         with patch('sys.argv', test_args):
-            with patch('src.harness_migration.cli.hybrid_mode', return_value={"test": "config"}) as mock_hybrid:
+            with patch('src.harness_migration.cli.interactive_mode', return_value={"test": "config"}) as mock_hybrid:
                 with patch('src.harness_migration.cli.apply_cli_overrides', return_value={"test": "config", "dry_run": True}):
                     with patch('src.harness_migration.cli.HarnessMigrator') as mock_migrator_class:
                         with patch('src.harness_migration.cli.sys.exit') as mock_exit:
@@ -395,7 +395,7 @@ class TestMain:
         # Act
         with patch('sys.argv', test_args):
             with patch('src.harness_migration.cli.setup_logging') as mock_setup_logging:
-                with patch('src.harness_migration.cli.hybrid_mode', return_value={"test": "config"}) as mock_hybrid:
+                with patch('src.harness_migration.cli.interactive_mode', return_value={"test": "config"}) as mock_hybrid:
                     with patch('src.harness_migration.cli.apply_cli_overrides', return_value={"test": "config"}):
                         with patch('src.harness_migration.cli.HarnessMigrator') as mock_migrator_class:
                             with patch('src.harness_migration.cli.sys.exit') as mock_exit:
@@ -417,7 +417,7 @@ class TestMain:
 
         # Act
         with patch('sys.argv', test_args):
-            with patch('src.harness_migration.cli.hybrid_mode', return_value={"test": "config"}) as mock_hybrid:
+            with patch('src.harness_migration.cli.interactive_mode', return_value={"test": "config"}) as mock_hybrid:
                 with patch('src.harness_migration.cli.apply_cli_overrides', return_value={"test": "config"}):
                     with patch('src.harness_migration.cli.HarnessMigrator') as mock_migrator_class:
                         mock_migrator = Mock()
@@ -443,7 +443,7 @@ class TestMain:
 
         # Act
         with patch('sys.argv', test_args):
-            with patch('src.harness_migration.cli.hybrid_mode', return_value={"test": "config"}) as mock_hybrid:
+            with patch('src.harness_migration.cli.interactive_mode', return_value={"test": "config"}) as mock_hybrid:
                 with patch('src.harness_migration.cli.apply_cli_overrides') as mock_apply_overrides:
                     mock_apply_overrides.return_value = {"test": "config", "source": {"org": "test-org"}}
                     with patch('src.harness_migration.cli.HarnessMigrator') as mock_migrator_class:

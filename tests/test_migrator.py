@@ -54,7 +54,8 @@ class TestHarnessMigrator:
         assert migrator.migration_stats == {
             "pipelines": {"success": 0, "failed": 0, "skipped": 0},
             "input_sets": {"success": 0, "failed": 0, "skipped": 0},
-            "templates": {"success": 0, "failed": 0, "skipped": 0}
+            "templates": {"success": 0, "failed": 0, "skipped": 0},
+            "triggers": {"success": 0, "failed": 0, "skipped": 0}
         }
 
     def test_get_option_returns_correct_value(self):
@@ -296,7 +297,7 @@ template:
                 result = self.migrator.migrate_template(template_ref, version_label)
 
         # Assert
-        assert result == {"success": True}
+        assert result is True
         assert self.migrator.migration_stats["templates"]["success"] == 1
 
     def test_migrate_template_failure(self):
