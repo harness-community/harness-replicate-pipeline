@@ -26,6 +26,7 @@ from .argument_parser import ArgumentParser
 from .config_validator import ConfigValidator
 from .logging_utils import setup_logging
 from .mode_handlers import ModeHandlers
+from .output_orchestrator import OutputOrchestrator, setup_output, get_orchestrator
 
 __all__ = [
     "HarnessAPIClient",
@@ -41,5 +42,8 @@ __all__ = [
     "ArgumentParser",
     "ConfigValidator",
     "setup_logging",
-    "ModeHandlers"
+    "ModeHandlers",
+    "OutputOrchestrator",
+    "setup_output",
+    "get_orchestrator"
 ]

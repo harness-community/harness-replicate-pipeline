@@ -76,15 +76,8 @@ class HarnessReplicator:
         return True
 
     def print_summary(self):
-        """Print replication summary"""
-        logger.info("\n%s", "=" * 50)
-        logger.info("REPLICATION SUMMARY")
-        logger.info("=" * 50)
-
-        for resource_type, stats in self.replication_stats.items():
-            logger.info("\n%s:", resource_type.upper())
-            logger.info("  Success: %s", stats['success'])
-            logger.info("  Failed: %s", stats['failed'])
-            logger.info("  Skipped: %s", stats['skipped'])
-
-        logger.info("\n%s", "=" * 50)
+        """Print replication summary using output orchestrator"""
+        from .output_orchestrator import get_orchestrator
+        
+        orchestrator = get_orchestrator()
+        orchestrator.output_summary(self.replication_stats)
