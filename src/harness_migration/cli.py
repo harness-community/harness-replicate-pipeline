@@ -42,12 +42,21 @@ def non_interactive_mode(config_file: str) -> Dict[str, Any]:
         logger.error("Failed to load configuration from %s", config_file)
         sys.exit(1)
 
+    return config
+
+
+def validate_non_interactive_config(config: Dict[str, Any], has_cli_pipelines: bool = False) -> bool:
+    """Validate configuration for non-interactive mode"""
     # Validate required fields
     required_fields = [
         ("source", "base_url"), ("source", "api_key"), ("source", "org"),
         ("source", "project"), ("destination", "base_url"), ("destination", "api_key"),
-        ("destination", "org"), ("destination", "project"), ("pipelines", None)
+        ("destination", "org"), ("destination", "project")
     ]
+    
+    # Only require pipelines in config if not provided via CLI
+    if not has_cli_pipelines:
+        required_fields.append(("pipelines", None))
 
     for field_path in required_fields:
         if len(field_path) == 2:
@@ -55,14 +64,14 @@ def non_interactive_mode(config_file: str) -> Dict[str, Any]:
             section_data = config.get(section, {})
             if isinstance(section_data, dict) and not section_data.get(key):
                 logger.error("Missing required field: %s.%s", section, key)
-                sys.exit(1)
+                return False
         else:
             section = field_path[0]
             if not config.get(section):
                 logger.error("Missing required section: %s", section)
-                sys.exit(1)
+                return False
 
-    return config
+    return True
 
 
 def interactive_mode(config_file: str) -> Dict[str, Any]:
@@ -137,7 +146,16 @@ Usage Examples:
         --dest-url https://app3.harness.io \\
         --dest-api-key sat.yyyyy.yyyyy.yyyyy \\
         --dest-org dest_org \\
-        --dest-project dest_project
+        --dest-project dest_project \\
+        --pipeline pipeline1 \\
+        --pipeline pipeline2
+        
+    # Migrate specific pipelines with minimal config
+    python -m harness_migration \\
+        --non-interactive \\
+        --pipeline api_deploy \\
+        --pipeline db_migration \\
+        --pipeline frontend_build
 
 Configuration File Format (supports JSONC with comments):
 {
@@ -260,6 +278,14 @@ Configuration File Format (supports JSONC with comments):
         action="store_true",
         help="Update/overwrite existing pipelines",
     )
+    
+    # Pipeline specification
+    parser.add_argument(
+        "--pipeline",
+        action="append",
+        dest="pipelines",
+        help="Pipeline identifier to migrate (can be used multiple times)",
+    )
 
     args = parser.parse_args()
 
@@ -269,12 +295,16 @@ Configuration File Format (supports JSONC with comments):
     # Choose mode based on flag
     if args.non_interactive:
         config = non_interactive_mode(args.config)
+        # Apply CLI argument overrides first
+        config = apply_cli_overrides(config, args)
+        # Validate configuration after applying CLI overrides
+        if not validate_non_interactive_config(config, has_cli_pipelines=bool(args.pipelines)):
+            sys.exit(1)
     else:
         # Use interactive mode by default (always show dialogs)
         config = interactive_mode(args.config)
-
-    # Apply CLI argument overrides (priority: config file > CLI args > interactive)
-    config = apply_cli_overrides(config, args)
+        # Apply CLI argument overrides (priority: config file > CLI args > interactive)
+        config = apply_cli_overrides(config, args)
 
     # Add dry-run and non-interactive flags to config
     config["dry_run"] = args.dry_run

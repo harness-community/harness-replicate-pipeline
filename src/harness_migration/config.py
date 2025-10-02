@@ -87,4 +87,14 @@ def apply_cli_overrides(config: Dict[str, Any], args) -> Dict[str, Any]:
     elif args.no_skip_existing:
         options["skip_existing"] = False
 
+    # Handle pipeline specifications from CLI
+    if args.pipelines:
+        cli_pipelines = []
+        for pipeline_id in args.pipelines:
+            # Only store identifier, name will be fetched from API when needed
+            cli_pipelines.append({"identifier": pipeline_id.strip()})
+        
+        # CLI pipelines override config file pipelines
+        updated_config["pipelines"] = cli_pipelines
+
     return updated_config
