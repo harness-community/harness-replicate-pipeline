@@ -51,7 +51,8 @@ api_call() {
 # Function to check if resource exists
 resource_exists() {
     local endpoint="$1"
-    local response=$(api_call "GET" "$endpoint")
+    local response
+    response=$(api_call "GET" "$endpoint")
     
     if echo "$response" | grep -q '"identifier"'; then
         return 0  # Resource exists
@@ -84,8 +85,10 @@ process_resources() {
     local indent="$3"
     local callback="$4"
     
-    local response=$(api_call "GET" "$endpoint")
-    local resources=$(extract_identifiers "$response")
+    local response
+    local resources
+    response=$(api_call "GET" "$endpoint")
+    resources=$(extract_identifiers "$response")
     
     if [ -n "$resources" ]; then
         echo "${indent}📋 Found $resource_type:"
@@ -115,8 +118,10 @@ cleanup_pipelines() {
     local org="$1"
     local project="$2"
     
-    local pipelines_response=$(api_call "GET" "/v1/orgs/$org/projects/$project/pipelines")
-    local pipelines=$(extract_identifiers "$pipelines_response")
+    local pipelines_response
+    local pipelines
+    pipelines_response=$(api_call "GET" "/v1/orgs/$org/projects/$project/pipelines")
+    pipelines=$(extract_identifiers "$pipelines_response")
     
     if [ -n "$pipelines" ]; then
         echo "         🔧 Found pipelines:"
@@ -143,8 +148,10 @@ cleanup_templates() {
 cleanup_projects() {
     local org="$1"
     
-    local projects_response=$(api_call "GET" "/v1/orgs/$org/projects")
-    local projects=$(extract_identifiers "$projects_response")
+    local projects_response
+    local projects
+    projects_response=$(api_call "GET" "/v1/orgs/$org/projects")
+    projects=$(extract_identifiers "$projects_response")
     
     if [ -n "$projects" ]; then
         echo "   📂 Found projects:"
