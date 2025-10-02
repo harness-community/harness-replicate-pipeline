@@ -40,7 +40,7 @@ class TestHarnessAPIClient:
         # Assert
         assert client.base_url == "https://test.com"
 
-    @patch('src.harness_migration.api_client.requests.Session.get')
+    @patch('src.api_client.requests.Session.get')
     def test_get_success_returns_json_response(self, mock_get):
         """Test successful GET request returns JSON response"""
         # Arrange
@@ -58,7 +58,7 @@ class TestHarnessAPIClient:
         mock_get.assert_called_once()
         mock_response.raise_for_status.assert_called_once()
 
-    @patch('src.harness_migration.api_client.requests.Session.get')
+    @patch('src.api_client.requests.Session.get')
     def test_get_with_params_passes_them_correctly(self, mock_get):
         """Test GET request with parameters"""
         # Arrange
@@ -77,7 +77,7 @@ class TestHarnessAPIClient:
             params=params
         )
 
-    @patch('src.harness_migration.api_client.requests.Session.get')
+    @patch('src.api_client.requests.Session.get')
     def test_get_request_exception_returns_none(self, mock_get):
         """Test GET request with RequestException returns None"""
         # Arrange
@@ -89,7 +89,7 @@ class TestHarnessAPIClient:
         # Assert
         assert result is None
 
-    @patch('src.harness_migration.api_client.requests.Session.get')
+    @patch('src.api_client.requests.Session.get')
     def test_get_http_error_logs_and_returns_none(self, mock_get):
         """Test GET request with HTTP error logs details and returns None"""
         # Arrange
@@ -107,7 +107,7 @@ class TestHarnessAPIClient:
         # Assert
         assert result is None
 
-    @patch('src.harness_migration.api_client.requests.Session.post')
+    @patch('src.api_client.requests.Session.post')
     def test_post_success_returns_json_response(self, mock_post):
         """Test successful POST request returns JSON response"""
         # Arrange
@@ -129,7 +129,7 @@ class TestHarnessAPIClient:
             json=payload
         )
 
-    @patch('src.harness_migration.api_client.requests.Session.post')
+    @patch('src.api_client.requests.Session.post')
     def test_post_with_params_and_json(self, mock_post):
         """Test POST request with both params and json data"""
         # Arrange
@@ -150,7 +150,7 @@ class TestHarnessAPIClient:
             json=json_data
         )
 
-    @patch('src.harness_migration.api_client.requests.Session.put')
+    @patch('src.api_client.requests.Session.put')
     def test_put_success_returns_json_response(self, mock_put):
         """Test successful PUT request returns JSON response"""
         # Arrange
@@ -172,7 +172,7 @@ class TestHarnessAPIClient:
             json=payload
         )
 
-    @patch('src.harness_migration.api_client.requests.Session.delete')
+    @patch('src.api_client.requests.Session.delete')
     def test_delete_success_returns_json_response(self, mock_delete):
         """Test successful DELETE request returns JSON response"""
         # Arrange
@@ -373,7 +373,7 @@ class TestHarnessAPIClient:
         ]
         assert result == expected
 
-    @patch('src.harness_migration.api_client.requests.Session.get')
+    @patch('src.api_client.requests.Session.get')
     def test_get_logs_debug_message(self, mock_get):
         """Test that GET request logs debug message"""
         # Arrange
@@ -383,20 +383,20 @@ class TestHarnessAPIClient:
         mock_get.return_value = mock_response
 
         # Act
-        with patch('src.harness_migration.api_client.logger') as mock_logger:
+        with patch('src.api_client.logger') as mock_logger:
             self.client.get("/test-endpoint")
 
         # Assert
         mock_logger.debug.assert_called_once()
 
-    @patch('src.harness_migration.api_client.requests.Session.get')
+    @patch('src.api_client.requests.Session.get')
     def test_get_error_logs_error_message(self, mock_get):
         """Test that GET request error logs error message"""
         # Arrange
         mock_get.side_effect = RequestException("Network error")
 
         # Act
-        with patch('src.harness_migration.api_client.logger') as mock_logger:
+        with patch('src.api_client.logger') as mock_logger:
             self.client.get("/test-endpoint")
 
         # Assert

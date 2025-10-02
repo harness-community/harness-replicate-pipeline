@@ -14,15 +14,15 @@ def test_can_import_src_package():
 
 def test_src_package_has_expected_modules():
     """Test that the src package has the expected modules."""
-    import src.harness_migration.api_client
-    import src.harness_migration.config
-    import src.harness_migration.migrator
-    import src.harness_migration.ui
-    import src.harness_migration.cli
+    import src.api_client
+    import src.config
+    import src.replicator
+    import src.ui
+    import src.cli
 
     # All modules should be importable
-    assert src.harness_migration.api_client is not None
-    assert src.harness_migration.config is not None
-    assert src.harness_migration.migrator is not None
-    assert src.harness_migration.ui is not None
-    assert src.harness_migration.cli is not None
+    assert src.api_client is not None
+    assert src.config is not None
+    assert src.replicator is not None
+    assert src.ui is not None
+    assert src.cli is not None
