@@ -8,7 +8,7 @@ import logging
 import sys
 
 from .argument_parser import ArgumentParser
-from .config import build_complete_config
+from .config import build_complete_config, load_config, save_config, should_save_config
 from .logging_utils import setup_logging
 from .mode_handlers import ModeHandlers
 from .replicator import HarnessReplicator
@@ -31,6 +31,9 @@ def main():
     parser = ArgumentParser.create_parser()
     args = parser.parse_args()
 
+    # Load original config for comparison (before any modifications)
+    original_config = load_config(args.config)
+
     # Build complete configuration from all input sources
     if args.non_interactive:
         # Non-interactive: config file + env vars + CLI args
@@ -47,6 +50,9 @@ def main():
         output_color=config.get("output_color", True)
     )
 
+    # Handle config saving based on mode and changes
+    _handle_config_saving(config, original_config, args)
+
     # Final validation - check for required variables and declare what must be set
     if not _validate_final_config(config, config.get("non_interactive", False), bool(config.get("pipelines"))):
         sys.exit(1)
@@ -56,6 +62,57 @@ def main():
     success = replicator.run_replication()
 
     sys.exit(0 if success else 1)
+
+
+def _handle_config_saving(config: dict, original_config: dict, args) -> None:
+    """Handle configuration saving based on mode and user preferences"""
+    is_interactive = not args.non_interactive
+    save_config_flag = getattr(args, 'save_config', False)
+    
+    if should_save_config(config, original_config, is_interactive, save_config_flag):
+        if is_interactive:
+            # Interactive mode: prompt user to save
+            _prompt_save_config(config, args.config)
+        else:
+            # Non-interactive mode: save automatically (flag and changes already checked)
+            if save_config(config, args.config):
+                logger.info("Configuration automatically saved (--save-config flag provided and changes detected)")
+            else:
+                logger.warning("Failed to save configuration file")
+    else:
+        # Log why config is not being saved
+        if is_interactive:
+            logger.debug("Interactive mode: no configuration changes detected")
+        else:
+            if save_config_flag:
+                logger.debug("Non-interactive mode: --save-config provided but no changes detected")
+            else:
+                logger.debug("Non-interactive mode: --save-config not provided")
+
+
+def _prompt_save_config(config: dict, config_file: str) -> None:
+    """Prompt user to save configuration in interactive mode"""
+    try:
+        from prompt_toolkit.shortcuts import yes_no_dialog
+        
+        should_save = yes_no_dialog(
+            title="Save Configuration",
+            text=f"The configuration has been updated with your selections.\n\n"
+                 f"Would you like to save these changes to '{config_file}'?\n\n"
+                 f"This will preserve your selections for future runs."
+        ).run()
+        
+        if should_save:
+            if save_config(config, config_file):
+                logger.info("Configuration saved successfully")
+            else:
+                logger.error("Failed to save configuration")
+        else:
+            logger.info("Configuration not saved (user choice)")
+            
+    except ImportError:
+        # Fallback if prompt_toolkit is not available
+        logger.warning("Interactive save prompt not available - configuration not saved")
 
 
 def _validate_final_config(config: dict, is_non_interactive: bool, has_cli_pipelines: bool) -> bool:

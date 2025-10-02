@@ -264,8 +264,6 @@ def create_project(client, org: str) -> Optional[str]:
 def get_selections_from_clients(source_client, dest_client, base_config: Dict[str, Any],
                                 config_file: str) -> Dict[str, Any]:
     """Get user selections for source and destination"""
-    from .config import save_config
-
     # Source organization
     source_org = base_config.get("source", {}).get("org")
     if not source_org:
@@ -273,7 +271,6 @@ def get_selections_from_clients(source_client, dest_client, base_config: Dict[st
         if not source_org:
             return {}
         base_config.setdefault("source", {})["org"] = source_org
-        save_config(base_config, config_file)
 
     # Source project
     source_project = base_config.get("source", {}).get("project")
@@ -282,7 +279,6 @@ def get_selections_from_clients(source_client, dest_client, base_config: Dict[st
         if not source_project:
             return {}
         base_config.setdefault("source", {})["project"] = source_project
-        save_config(base_config, config_file)
 
     # Source pipelines
     pipelines = base_config.get("pipelines", [])
@@ -292,7 +288,6 @@ def get_selections_from_clients(source_client, dest_client, base_config: Dict[st
         if not pipelines:
             return {}
         base_config["pipelines"] = pipelines
-        save_config(base_config, config_file)
 
     # Destination organization
     dest_org = base_config.get("destination", {}).get("org")
@@ -302,7 +297,6 @@ def get_selections_from_clients(source_client, dest_client, base_config: Dict[st
         if not dest_org:
             return {}
         base_config.setdefault("destination", {})["org"] = dest_org
-        save_config(base_config, config_file)
 
     # Destination project
     dest_project = base_config.get("destination", {}).get("project")
@@ -312,7 +306,6 @@ def get_selections_from_clients(source_client, dest_client, base_config: Dict[st
         if not dest_project:
             return {}
         base_config.setdefault("destination", {})["project"] = dest_project
-        save_config(base_config, config_file)
 
     return base_config
 
@@ -320,7 +313,6 @@ def get_selections_from_clients(source_client, dest_client, base_config: Dict[st
 def get_interactive_selections(source_client, dest_client, base_config: Dict[str, Any],
                               config_file: str) -> Dict[str, Any]:
     """Get user selections with interactive dialogs - always show dialogs even if values exist"""
-    from .config import save_config
     from prompt_toolkit.shortcuts import yes_no_dialog
 
     # Source organization - always show dialog
@@ -338,7 +330,6 @@ def get_interactive_selections(source_client, dest_client, base_config: Dict[str
             if not source_org:
                 return {}
             base_config.setdefault("source", {})["org"] = source_org
-            save_config(base_config, config_file)
         else:
             source_org = current_source_org
     else:
@@ -346,7 +337,6 @@ def get_interactive_selections(source_client, dest_client, base_config: Dict[str
         if not source_org:
             return {}
         base_config.setdefault("source", {})["org"] = source_org
-        save_config(base_config, config_file)
 
     # Source project - always show dialog
     current_source_project = base_config.get("source", {}).get("project")
@@ -363,7 +353,6 @@ def get_interactive_selections(source_client, dest_client, base_config: Dict[str
             if not source_project:
                 return {}
             base_config.setdefault("source", {})["project"] = source_project
-            save_config(base_config, config_file)
         else:
             source_project = current_source_project
     else:
@@ -371,7 +360,6 @@ def get_interactive_selections(source_client, dest_client, base_config: Dict[str
         if not source_project:
             return {}
         base_config.setdefault("source", {})["project"] = source_project
-        save_config(base_config, config_file)
 
     # Source pipelines - always show dialog
     current_pipelines = base_config.get("pipelines", [])
@@ -392,7 +380,6 @@ def get_interactive_selections(source_client, dest_client, base_config: Dict[str
             if not pipelines:
                 return {}
             base_config["pipelines"] = pipelines
-            save_config(base_config, config_file)
         else:
             pipelines = current_pipelines
     else:
@@ -401,7 +388,6 @@ def get_interactive_selections(source_client, dest_client, base_config: Dict[str
         if not pipelines:
             return {}
         base_config["pipelines"] = pipelines
-        save_config(base_config, config_file)
 
     # Destination organization - always show dialog
     current_dest_org = base_config.get("destination", {}).get("org")
@@ -419,7 +405,6 @@ def get_interactive_selections(source_client, dest_client, base_config: Dict[str
             if not dest_org:
                 return {}
             base_config.setdefault("destination", {})["org"] = dest_org
-            save_config(base_config, config_file)
         else:
             dest_org = current_dest_org
     else:
@@ -428,7 +413,6 @@ def get_interactive_selections(source_client, dest_client, base_config: Dict[str
         if not dest_org:
             return {}
         base_config.setdefault("destination", {})["org"] = dest_org
-        save_config(base_config, config_file)
 
     # Destination project - always show dialog
     current_dest_project = base_config.get("destination", {}).get("project")
@@ -446,7 +430,6 @@ def get_interactive_selections(source_client, dest_client, base_config: Dict[str
             if not dest_project:
                 return {}
             base_config.setdefault("destination", {})["project"] = dest_project
-            save_config(base_config, config_file)
         else:
             dest_project = current_dest_project
     else:
@@ -455,6 +438,5 @@ def get_interactive_selections(source_client, dest_client, base_config: Dict[str
         if not dest_project:
             return {}
         base_config.setdefault("destination", {})["project"] = dest_project
-        save_config(base_config, config_file)
 
     return base_config

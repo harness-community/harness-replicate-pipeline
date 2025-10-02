@@ -54,6 +54,9 @@ Usage Examples:
     # Enable colors for terminal output
     python main.py --output-color
 
+    # Save config after interactive selections
+    python main.py --save-config
+
     # Override specific values via CLI
     python main.py --source-org my_org --dest-org target_org
 
@@ -143,6 +146,12 @@ Configuration File Format (supports JSONC with comments):
             "--output-color",
             action="store_true",
             help="Enable colored output for terminal display (default: false, ignored for JSON output)",
+        )
+
+        parser.add_argument(
+            "--save-config",
+            action="store_true",
+            help="Save the merged configuration to config file (interactive: prompt, non-interactive: only if this flag is set)",
         )
 
     @staticmethod

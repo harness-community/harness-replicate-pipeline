@@ -120,6 +120,63 @@ def save_config(config: Dict[str, Any], config_file: str) -> bool:
         return False
 
 
+def has_config_changed(original_config: Dict[str, Any], merged_config: Dict[str, Any]) -> bool:
+    """Check if the merged configuration differs from the original config file.
+    
+    Compares the clean versions (without metadata) to determine if there are
+    meaningful changes that would warrant saving the config.
+    """
+    # Create clean copies for comparison (remove metadata and runtime flags)
+    def clean_for_comparison(config: Dict[str, Any]) -> Dict[str, Any]:
+        clean = {}
+        for key, value in config.items():
+            # Skip metadata and runtime-only flags
+            if key.startswith("_") or key in ["dry_run", "debug", "non_interactive", "output_json", "output_color"]:
+                continue
+            clean[key] = value
+        return clean
+    
+    original_clean = clean_for_comparison(original_config)
+    merged_clean = clean_for_comparison(merged_config)
+    
+    return original_clean != merged_clean
+
+
+def should_save_config(config: Dict[str, Any], original_config: Dict[str, Any], 
+                      is_interactive: bool, save_config_flag: bool) -> bool:
+    """Determine if configuration should be saved based on mode and changes.
+    
+    Args:
+        config: The merged configuration (single source of truth)
+        original_config: The original config loaded from file
+        is_interactive: Whether running in interactive mode
+        save_config_flag: Whether --save-config flag was provided
+    
+    Returns:
+        True if config should be saved, False otherwise
+    """
+    # Always check if there are meaningful changes first
+    has_changes = has_config_changed(original_config, config)
+    
+    if not has_changes:
+        logger.debug("Configuration unchanged - no need to save")
+        return False  # No changes, no need to save regardless of mode or flags
+    
+    logger.debug("Configuration has changed from original")
+    
+    if is_interactive:
+        # Interactive mode: prompt user when there are changes
+        return True  # Will prompt user in CLI
+    else:
+        # Non-interactive mode: only save if --save-config flag is provided AND there are changes
+        if save_config_flag:
+            logger.debug("Non-interactive mode with --save-config flag and changes detected")
+            return True
+        else:
+            logger.debug("Non-interactive mode without --save-config flag - not saving")
+            return False
+
+
 def build_complete_config(config_file: str, args, interactive_config: Dict[str, Any] = None) -> Dict[str, Any]:
     """Build complete configuration from all input sources in priority order.
     
