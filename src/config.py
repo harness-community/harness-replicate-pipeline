@@ -65,21 +65,21 @@ def apply_cli_overrides(config: Dict[str, Any], args) -> Dict[str, Any]:
     if args.dest_project:
         updated_config.setdefault("destination", {})["project"] = args.dest_project
 
-    # Migration options overrides
+    # Replication options overrides
     options = updated_config.setdefault("options", {})
 
-    # Handle migrate_input_sets (CLI args override config)
-    if args.migrate_input_sets:
-        options["migrate_input_sets"] = True
-    elif args.no_migrate_input_sets:
-        options["migrate_input_sets"] = False
+    # Handle replicate_input_sets (CLI args override config)
+    if hasattr(args, 'replicate_input_sets') and args.replicate_input_sets:
+        options["replicate_input_sets"] = True
+    elif hasattr(args, 'no_replicate_input_sets') and args.no_replicate_input_sets:
+        options["replicate_input_sets"] = False
 
-    # Handle migrate_triggers (CLI args override config)
+    # Handle replicate_triggers (CLI args override config)
     # Default is True, only set to False if explicitly disabled
-    if args.no_migrate_triggers:
-        options["migrate_triggers"] = False
-    elif args.migrate_triggers:
-        options["migrate_triggers"] = True
+    if hasattr(args, 'no_replicate_triggers') and args.no_replicate_triggers:
+        options["replicate_triggers"] = False
+    elif hasattr(args, 'replicate_triggers') and args.replicate_triggers:
+        options["replicate_triggers"] = True
 
     # Handle skip_existing (CLI args override config)
     if args.skip_existing:

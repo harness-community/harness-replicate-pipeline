@@ -12,7 +12,7 @@ from typing import Any, Dict
 
 from .api_client import HarnessAPIClient
 from .config import apply_cli_overrides, load_config
-from .migrator import HarnessMigrator
+from .replicator import HarnessReplicator
 from .ui import get_selections_from_clients
 
 logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ def setup_logging(debug=False):
         format="%(asctime)s - %(levelname)s - %(message)s",
         handlers=[
             logging.FileHandler(
-                f'migration_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
+                f'replication_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
             ),
             logging.StreamHandler(sys.stdout),
         ],
@@ -111,7 +111,7 @@ def interactive_mode(config_file: str) -> Dict[str, Any]:
 def main():
     """Main entry point"""
     parser = argparse.ArgumentParser(
-        description="Migrate Harness pipelines between accounts",
+        description="Replicate Harness pipelines between accounts",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Modes:
@@ -120,25 +120,25 @@ Modes:
 
 Usage Examples:
     # Interactive mode (default) - always show dialogs for review/confirmation
-    python -m harness_migration
+    python main.py
 
     # Non-interactive mode (use all values from config file)
-    python -m harness_migration --non-interactive
+    python main.py --non-interactive
 
     # Dry run to test without making changes
-    python -m harness_migration --dry-run
+    python main.py --dry-run
 
     # Debug mode for troubleshooting
-    python -m harness_migration --debug
+    python main.py --debug
 
     # Override specific values via CLI
-    python -m harness_migration --source-org my_org --dest-org target_org
+    python main.py --source-org my_org --dest-org target_org
 
-    # Override migration options
-    python -m harness_migration --no-migrate-triggers --no-migrate-input-sets --no-skip-existing
+    # Override replication options
+    python main.py --no-replicate-triggers --no-replicate-input-sets --no-skip-existing
 
     # Full CLI configuration (minimal config file needed)
-    python -m harness_migration \\
+    python main.py \\
         --source-url https://app.harness.io \\
         --source-api-key sat.xxxxx.xxxxx.xxxxx \\
         --source-org source_org \\
@@ -150,8 +150,8 @@ Usage Examples:
         --pipeline pipeline1 \\
         --pipeline pipeline2
         
-    # Migrate specific pipelines with minimal config
-    python -m harness_migration \\
+    # Replicate specific pipelines with minimal config
+    python main.py \\
         --non-interactive \\
         --pipeline api_deploy \\
         --pipeline db_migration \\
@@ -172,8 +172,8 @@ Configuration File Format (supports JSONC with comments):
     // "project": "dest_project"  // Leave commented to select interactively
   },
   "options": {
-    "migrate_input_sets": true,
-    "migrate_triggers": true,
+    "replicate_input_sets": true,
+    "replicate_triggers": true,
     "skip_existing": true
   }
 }
@@ -249,24 +249,24 @@ Configuration File Format (supports JSONC with comments):
 
     # Migration options
     parser.add_argument(
-        "--migrate-input-sets",
+        "--replicate-input-sets",
         action="store_true",
-        help="Migrate input sets with pipelines (default: true)",
+        help="Replicate input sets with pipelines (default: true)",
     )
     parser.add_argument(
-        "--no-migrate-input-sets",
+        "--no-replicate-input-sets",
         action="store_true",
-        help="Skip migrating input sets",
+        help="Skip replicating input sets",
     )
     parser.add_argument(
-        "--no-migrate-triggers",
+        "--no-replicate-triggers",
         action="store_true",
-        help="Skip migrating triggers (default: migrate triggers)",
+        help="Skip replicating triggers (default: replicate triggers)",
     )
     parser.add_argument(
-        "--migrate-triggers",
+        "--replicate-triggers",
         action="store_true",
-        help="Force migrate triggers (default behavior, kept for compatibility)",
+        help="Force replicate triggers (default behavior, kept for compatibility)",
     )
     parser.add_argument(
         "--skip-existing",
@@ -284,7 +284,7 @@ Configuration File Format (supports JSONC with comments):
         "--pipeline",
         action="append",
         dest="pipelines",
-        help="Pipeline identifier to migrate (can be used multiple times)",
+        help="Pipeline identifier to replicate (can be used multiple times)",
     )
 
     args = parser.parse_args()
@@ -310,9 +310,9 @@ Configuration File Format (supports JSONC with comments):
     config["dry_run"] = args.dry_run
     config["non_interactive"] = args.non_interactive
 
-    # Run migration
-    migrator = HarnessMigrator(config)
-    success = migrator.run_migration()
+    # Run replication
+    replicator = HarnessReplicator(config)
+    success = replicator.run_replication()
 
     sys.exit(0 if success else 1)
 

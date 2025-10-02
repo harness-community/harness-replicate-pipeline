@@ -95,7 +95,7 @@ def select_pipelines(client, org: str, project: str,
                    for pipeline in pipelines]
         selected = checkboxlist_dialog(
             title=title,
-            text="Select pipelines to migrate (use Space to select/deselect):",
+            text="Select pipelines to replicate (use Space to select/deselect):",
             values=choices,
         ).run()
 
@@ -288,7 +288,7 @@ def get_selections_from_clients(source_client, dest_client, base_config: Dict[st
     pipelines = base_config.get("pipelines", [])
     if not pipelines:
         pipelines = select_pipelines(source_client, source_org, source_project,
-                                     "SELECT PIPELINES TO MIGRATE")
+                                     "SELECT PIPELINES TO REPLICATE")
         if not pipelines:
             return {}
         base_config["pipelines"] = pipelines
@@ -397,7 +397,7 @@ def get_interactive_selections(source_client, dest_client, base_config: Dict[str
             pipelines = current_pipelines
     else:
         pipelines = select_pipelines(source_client, source_org, source_project,
-                                   "SELECT PIPELINES TO MIGRATE")
+                                   "SELECT PIPELINES TO REPLICATE")
         if not pipelines:
             return {}
         base_config["pipelines"] = pipelines

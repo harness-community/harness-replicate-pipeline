@@ -1,7 +1,7 @@
 """
-Migration Logic
+Replication Logic
 
-Core migration functionality for pipelines, input sets, and templates.
+Core replication functionality for pipelines, input sets, and templates.
 """
 
 import logging
@@ -16,11 +16,11 @@ from .api_client import HarnessAPIClient
 logger = logging.getLogger(__name__)
 
 
-class HarnessMigrator:
-    """Main migration orchestrator"""
+class HarnessReplicator:
+    """Main replication orchestrator"""
 
     def __init__(self, config: Dict[str, Any]):
-        """Initialize migrator with configuration"""
+        """Initialize replicator with configuration"""
         self.config = config
         self.source_org = config["source"]["org"]
         self.source_project = config["source"]["project"]
@@ -35,8 +35,8 @@ class HarnessMigrator:
             config["destination"]["base_url"], config["destination"]["api_key"]
         )
 
-        # Migration statistics
-        self.migration_stats = {
+        # Replication statistics
+        self.replication_stats = {
             "pipelines": {"success": 0, "failed": 0, "skipped": 0},
             "input_sets": {"success": 0, "failed": 0, "skipped": 0},
             "templates": {"success": 0, "failed": 0, "skipped": 0},
@@ -140,9 +140,9 @@ class HarnessMigrator:
         response = self.dest_client.get(endpoint)
         return response is not None
 
-    def migrate_template(self, template_ref: str, version_label: Optional[str] = None) -> bool:
-        """Migrate a template from source to destination"""
-        logger.info("  Migrating template: %s (v%s)", template_ref, version_label or "stable")
+    def replicate_template(self, template_ref: str, version_label: Optional[str] = None) -> bool:
+        """Replicate a template from source to destination"""
+        logger.info("  Replicating template: %s (v%s)", template_ref, version_label or "stable")
 
         # Get template from source
         source_org = self.source_org
@@ -157,7 +157,7 @@ class HarnessMigrator:
         template_data = self.source_client.get(source_endpoint)
         if not template_data:
             logger.error("  Failed to get template from source: %s", template_ref)
-            self.migration_stats["templates"]["failed"] += 1
+            self.replication_stats["templates"]["failed"] += 1
             return False
 
         # Extract template YAML
@@ -167,7 +167,7 @@ class HarnessMigrator:
             template_yaml = ""
         if not template_yaml:
             logger.error("  Template missing YAML content: %s", template_ref)
-            self.migration_stats["templates"]["failed"] += 1
+            self.replication_stats["templates"]["failed"] += 1
             return False
 
         # Update YAML to use destination org/project and set version
@@ -198,18 +198,18 @@ class HarnessMigrator:
             result = self.dest_client.post(dest_endpoint, json=template_payload)
 
         if result:
-            logger.info("  ✓ Template '%s' migrated successfully", template_ref)
-            self.migration_stats["templates"]["success"] += 1
+            logger.info("  ✓ Template '%s' replicated successfully", template_ref)
+            self.replication_stats["templates"]["success"] += 1
         else:
-            logger.error("  ✗ Failed to migrate template: %s", template_ref)
-            self.migration_stats["templates"]["failed"] += 1
+            logger.error("  ✗ Failed to replicate template: %s", template_ref)
+            self.replication_stats["templates"]["failed"] += 1
 
         time.sleep(0.3)
         return bool(result)
 
-    def run_migration(self) -> bool:
-        """Run the complete migration process"""
-        logger.info("Starting Harness Pipeline Migration")
+    def run_replication(self) -> bool:
+        """Run the complete replication process"""
+        logger.info("Starting Harness Pipeline Replication")
         logger.info("Source: %s/%s", self.source_org, self.source_project)
         logger.info("Destination: %s/%s", self.dest_org, self.dest_project)
 
@@ -217,8 +217,8 @@ class HarnessMigrator:
         if not self.verify_prerequisites():
             return False
 
-        # Migrate pipelines
-        if not self.migrate_pipelines():
+        # Replicate pipelines
+        if not self.replicate_pipelines():
             return False
 
         # Print summary
@@ -253,7 +253,7 @@ class HarnessMigrator:
             "org": {
                 "identifier": self.dest_org,
                 "name": self.dest_org.replace("_", " ").title(),
-                "description": "Organization created by migration tool"
+                "description": "Organization created by replication tool"
             }
         }
 
@@ -291,7 +291,7 @@ class HarnessMigrator:
                 "orgIdentifier": self.dest_org,
                 "identifier": self.dest_project,
                 "name": self.dest_project.replace("_", " ").title(),
-                "description": "Project created by migration tool"
+                "description": "Project created by replication tool"
             }
         }
 
@@ -312,8 +312,8 @@ class HarnessMigrator:
         logger.info("Project '%s' created successfully", self.dest_project)
         return True
 
-    def migrate_input_sets(self, pipeline_id: str) -> bool:
-        """Migrate input sets for a specific pipeline"""
+    def replicate_input_sets(self, pipeline_id: str) -> bool:
+        """Replicate input sets for a specific pipeline"""
         logger.info("  Checking for input sets for pipeline: %s", pipeline_id)
 
         # List input sets
@@ -327,12 +327,12 @@ class HarnessMigrator:
             logger.info("  No input sets found for pipeline: %s", pipeline_id)
             return True
 
-        logger.info("  Migrating %d input sets...", len(input_sets))
+        logger.info("  Replicating %d input sets...", len(input_sets))
 
         for input_set in input_sets:
             input_set_id = input_set.get("identifier")
             input_set_name = input_set.get("name", input_set_id)
-            logger.info("  Migrating input set: %s", input_set_name)
+            logger.info("  Replicating input set: %s", input_set_name)
 
             # Get full input set details
             get_endpoint = self._build_endpoint(
@@ -343,7 +343,7 @@ class HarnessMigrator:
 
             if not input_set_details:
                 logger.error("  Failed to get details for input set: %s", input_set_id)
-                self.migration_stats["input_sets"]["failed"] += 1
+                self.replication_stats["input_sets"]["failed"] += 1
                 continue
 
             # Update org/project identifiers in input set YAML
@@ -367,18 +367,18 @@ class HarnessMigrator:
                     json=json_data)
 
             if result:
-                logger.info("  ✓ Input set '%s' migrated successfully", input_set_name)
-                self.migration_stats["input_sets"]["success"] += 1
+                logger.info("  ✓ Input set '%s' replicated successfully", input_set_name)
+                self.replication_stats["input_sets"]["success"] += 1
             else:
-                logger.error("  ✗ Failed to migrate input set: %s", input_set_name)
-                self.migration_stats["input_sets"]["failed"] += 1
+                logger.error("  ✗ Failed to replicate input set: %s", input_set_name)
+                self.replication_stats["input_sets"]["failed"] += 1
 
             time.sleep(0.3)
 
         return True
 
-    def migrate_triggers(self, pipeline_id: str) -> bool:
-        """Migrate triggers for a specific pipeline"""
+    def replicate_triggers(self, pipeline_id: str) -> bool:
+        """Replicate triggers for a specific pipeline"""
         logger.info("  Checking for triggers for pipeline: %s", pipeline_id)
 
         # List triggers using the discovered API endpoint
@@ -407,12 +407,12 @@ class HarnessMigrator:
             logger.info("  No triggers found for pipeline: %s", pipeline_id)
             return True
 
-        logger.info("  Migrating %d triggers...", len(triggers))
+        logger.info("  Replicating %d triggers...", len(triggers))
 
         for trigger in triggers:
             trigger_id = trigger.get("identifier")
             trigger_name = trigger.get("name", trigger_id)
-            logger.info("  Migrating trigger: %s", trigger_name)
+            logger.info("  Replicating trigger: %s", trigger_name)
 
             # Check if trigger already exists in destination
             existing_trigger_endpoint = f"/pipeline/api/triggers/{trigger_id}"
@@ -426,7 +426,7 @@ class HarnessMigrator:
             if existing_trigger:
                 if self._get_option("skip_existing", True):
                     logger.info("  Trigger '%s' already exists, skipping", trigger_name)
-                    self.migration_stats["triggers"]["skipped"] += 1
+                    self.replication_stats["triggers"]["skipped"] += 1
                     continue
                 else:
                     logger.info("  Trigger '%s' already exists, updating", trigger_name)
@@ -448,7 +448,7 @@ class HarnessMigrator:
 
             if not trigger_details:
                 logger.error("  Failed to get details for trigger: %s", trigger_id)
-                self.migration_stats["triggers"]["failed"] += 1
+                self.replication_stats["triggers"]["failed"] += 1
                 continue
 
             # Update org/project identifiers in trigger YAML
@@ -513,35 +513,35 @@ class HarnessMigrator:
                     result = False
 
             if result:
-                logger.info("  ✓ Trigger '%s' %s successfully", trigger_name, "updated" if existing_trigger else "migrated")
-                self.migration_stats["triggers"]["success"] += 1
+                logger.info("  ✓ Trigger '%s' %s successfully", trigger_name, "updated" if existing_trigger else "replicated")
+                self.replication_stats["triggers"]["success"] += 1
             else:
                 logger.error("  ✗ Failed to %s trigger: %s", action, trigger_name)
-                self.migration_stats["triggers"]["failed"] += 1
+                self.replication_stats["triggers"]["failed"] += 1
 
             time.sleep(0.3)
 
         return True
 
-    def migrate_pipelines(self) -> bool:
-        """Migrate all selected pipelines"""
+    def replicate_pipelines(self) -> bool:
+        """Replicate all selected pipelines"""
         pipelines = self.config.get("pipelines", [])
         if not pipelines:
-            logger.warning("No pipelines selected for migration")
+            logger.warning("No pipelines selected for replication")
             return True
 
-        logger.info("Migrating %d pipelines...", len(pipelines))
+        logger.info("Replicating %d pipelines...", len(pipelines))
 
         for pipeline in pipelines:
             pipeline_id = pipeline.get("identifier")
             if not pipeline_id:
                 logger.error("Pipeline missing identifier, skipping: %s", pipeline)
-                self.migration_stats["pipelines"]["failed"] += 1
+                self.replication_stats["pipelines"]["failed"] += 1
                 continue
 
             pipeline_name = pipeline.get("name") or pipeline_id
 
-            logger.info("\nMigrating pipeline: %s (%s)", pipeline_name, pipeline_id)
+            logger.info("\nReplicating pipeline: %s (%s)", pipeline_name, pipeline_id)
 
             # Get pipeline details from source
             pipeline_endpoint = self._build_endpoint(
@@ -551,7 +551,7 @@ class HarnessMigrator:
 
             if not pipeline_details:
                 logger.error("Failed to get pipeline details: %s", pipeline_id)
-                self.migration_stats["pipelines"]["failed"] += 1
+                self.replication_stats["pipelines"]["failed"] += 1
                 continue
 
             # Extract and handle template dependencies
@@ -568,11 +568,11 @@ class HarnessMigrator:
                                 "  Template '%s' (v%s) already exists in destination",
                                 template_ref, version_label if version_label else "stable"
                             )
-                            self.migration_stats["templates"]["skipped"] += 1
+                            self.replication_stats["templates"]["skipped"] += 1
 
                     # Handle missing templates
                     if not self._handle_missing_templates(templates, pipeline_name):
-                        self.migration_stats["pipelines"]["failed"] += 1
+                        self.replication_stats["pipelines"]["failed"] += 1
                         continue
 
             # Create or update the pipeline
@@ -583,30 +583,30 @@ class HarnessMigrator:
                 result = None
 
             if result is True:
-                self.migration_stats["pipelines"]["success"] += 1
+                self.replication_stats["pipelines"]["success"] += 1
             elif result is False:
                 # Skipped - already exists
-                self.migration_stats["pipelines"]["skipped"] += 1
+                self.replication_stats["pipelines"]["skipped"] += 1
             else:
                 # Failed
-                self.migration_stats["pipelines"]["failed"] += 1
+                self.replication_stats["pipelines"]["failed"] += 1
 
-            # Migrate associated resources regardless of pipeline creation result
-            # (input sets and triggers should be migrated even if pipeline already exists)
-            if result is not None:  # Only skip if pipeline migration completely failed
-                # Migrate associated input sets
-                if self._get_option("migrate_input_sets", True):
-                    self.migrate_input_sets(pipeline_id)
+                # Replicate associated resources regardless of pipeline creation result
+            # (input sets and triggers should be replicated even if pipeline already exists)
+            if result is not None:  # Only skip if pipeline replication completely failed
+                # Replicate associated input sets
+                if self._get_option("replicate_input_sets", True):
+                    self.replicate_input_sets(pipeline_id)
                     
-                # Migrate associated triggers (after input sets since triggers may reference them)
-                if self._get_option("migrate_triggers", True):
-                    self.migrate_triggers(pipeline_id)
+                # Replicate associated triggers (after input sets since triggers may reference them)
+                if self._get_option("replicate_triggers", True):
+                    self.replicate_triggers(pipeline_id)
 
         return True
 
     def _handle_missing_templates(self, templates: List[Tuple[str, Optional[str]]],
                                   pipeline_name: str) -> bool:
-        """Handle missing templates - either migrate them or skip pipeline"""
+        """Handle missing templates - either replicate them or skip pipeline"""
         missing_templates = []
         for template_ref, version_label in templates:
             if not self.check_template_exists(template_ref, version_label):
@@ -621,22 +621,22 @@ class HarnessMigrator:
             logger.warning("    - %s (v%s)", template_ref, version_label or "stable")
 
         if not self._is_interactive():
-            logger.info("  Auto-migrating missing templates...")
+            logger.info("  Auto-replicating missing templates...")
             for template_ref, version_label in missing_templates:
-                self.migrate_template(template_ref, version_label)
+                self.replicate_template(template_ref, version_label)
             return True
 
         # Ask user what to do
         choice = self._ask_user_about_templates(missing_templates, pipeline_name)
         if choice is None:  # Skip pipeline
             return False
-        elif choice:  # Migrate templates
+        elif choice:  # Replicate templates
             for template_ref, version_label in missing_templates:
-                self.migrate_template(template_ref, version_label)
+                self.replicate_template(template_ref, version_label)
             return True
         else:  # Skip templates
             logger.warning(
-                "  Continuing without migrating templates (pipeline creation will likely fail)")
+                "  Continuing without replicating templates (pipeline creation will likely fail)")
             return True
 
     def _ask_user_about_templates(self, missing_templates: List[Tuple[str, Optional[str]]],
@@ -649,16 +649,16 @@ class HarnessMigrator:
         text = (
             f"Pipeline '{pipeline_name}' references {len(missing_templates)} template(s) "
             f"that don't exist in the destination:\n\n{template_list}\n\n"
-            f"The script can automatically migrate these templates from "
+            f"The script can automatically replicate these templates from "
             f"the source environment.\n\n"
-            f"Do you want to migrate these templates?"
+            f"Do you want to replicate these templates?"
         )
 
         choice = button_dialog(
             title="Missing Templates",
             text=text,
             buttons=[
-                ("migrate", "Yes, Migrate Templates"),
+                ("replicate", "Yes, Replicate Templates"),
                 ("skip_templates", "No, Continue Without Templates"),
                 ("skip", "Skip This Pipeline"),
             ],
@@ -670,8 +670,8 @@ class HarnessMigrator:
         if choice in ["skip", "Skip This Pipeline"]:
             logger.info("  ⊘ Skipping pipeline due to missing templates")
             return None  # Skip pipeline
-        elif choice in ["migrate", "Yes, Migrate Templates"]:
-            logger.info("  → User chose to migrate templates")
+        elif choice in ["replicate", "Yes, Replicate Templates"]:
+            logger.info("  → User chose to replicate templates")
             return True
         elif choice in ["skip_templates", "No, Continue Without Templates"]:
             logger.info("  → User chose to skip templates")
@@ -716,19 +716,19 @@ class HarnessMigrator:
             result = self.dest_client.post(endpoint, json=pipeline_details)
 
         if result:
-            logger.info("  ✓ Pipeline '%s' migrated successfully", pipeline_name)
+            logger.info("  ✓ Pipeline '%s' replicated successfully", pipeline_name)
             return True
         else:
-            logger.error("  ✗ Failed to migrate pipeline: %s", pipeline_name)
+            logger.error("  ✗ Failed to replicate pipeline: %s", pipeline_name)
             return None  # Failed
 
     def print_summary(self):
-        """Print migration summary"""
+        """Print replication summary"""
         logger.info("\n%s", "=" * 50)
-        logger.info("MIGRATION SUMMARY")
+        logger.info("REPLICATION SUMMARY")
         logger.info("=" * 50)
 
-        for resource_type, stats in self.migration_stats.items():
+        for resource_type, stats in self.replication_stats.items():
             logger.info("\n%s:", resource_type.upper())
             logger.info("  Success: %s", stats['success'])
             logger.info("  Failed: %s", stats['failed'])
