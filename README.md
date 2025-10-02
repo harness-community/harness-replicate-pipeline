@@ -1,6 +1,6 @@
-# Harness Pipeline Migration Toolkit
+# Harness Pipeline Replication Tool
 
-A Python tool to migrate Harness pipelines, input sets, and templates between
+A Python tool to replicate Harness pipelines, input sets, and templates between
 Harness accounts with an intuitive interactive interface or CLI option for automation.
 
 ---
@@ -47,7 +47,7 @@ harness_migration_toolkit/
 │   ├── __init__.py               # Package exports
 │   ├── api_client.py             # Harness API interactions
 │   ├── config.py                 # Configuration management
-│   ├── migrator.py               # Migration logic
+│   ├── replicator.py               # Replication logic
 │   ├── ui.py                     # Interactive dialogs
 │   ├── cli.py                    # Command-line interface
 │   └── __main__.py              # Module entry point
@@ -58,8 +58,8 @@ harness_migration_toolkit/
 ```
 
 **Usage Options:**
-- **Main script**: `python harness_migration.py` (recommended)
-- **Module**: `python -m src.harness_migration` (alternative)
+- **Main script**: `python main.py` (recommended)
+- **Module**: `python -m src` (alternative)
 
 ## Quick Start
 
@@ -93,10 +93,10 @@ pip install -r requirements.txt
 
 ```bash
 # Interactive mode (recommended for first time)
-python harness_migration.py
+python main.py
 
 # Always test first with dry-run
-python harness_migration.py --dry-run
+python main.py --dry-run
 ```
 
 That's it! The interactive mode guides you through everything.
@@ -109,7 +109,7 @@ That's it! The interactive mode guides you through everything.
 - [Usage Modes](#usage-modes)
 - [Navigation Guide](#navigation-guide)
 - [Configuration](#configuration)
-- [What Gets Migrated](#what-gets-migrated)
+- [What Gets Migrated](#what-gets-replicated)
 - [Commands](#commands)
 - [Troubleshooting](#troubleshooting)
 - [Best Practices](#best-practices)
@@ -126,11 +126,11 @@ That's it! The interactive mode guides you through everything.
 - Pre-selection from previous runs
 - No config files needed initially
 
-**Migration:**
+**Replication:**
 - Migrates complete pipeline YAML
 - Automatically updates `orgIdentifier` and `projectIdentifier` in YAML
 - Migrates input sets associated with pipelines
-- Auto-migrates templates referenced by pipelines
+- Auto-replicates templates referenced by pipelines
 - Cross-instance support (app.harness.io ↔ app3.harness.io)
 - Auto-creates destination org/project if needed
 
@@ -157,19 +157,19 @@ Best for first-time use and manual migrations.
 
 ```bash
 # Basic interactive mode
-python harness_migration.py
+python main.py
 
 # With dry-run (recommended first time)
-python harness_migration.py --dry-run
+python main.py --dry-run
 
 # With debug logging
-python harness_migration.py --debug
+python main.py --debug
 ```
 
 **Flow:**
 1. Enter source credentials and select org/project/pipelines
 2. Enter destination credentials and select/create org/project
-3. Choose options (migrate input sets, skip existing)
+3. Choose options (replicate input sets, skip existing)
 4. Review and confirm
 
 ### Non-Interactive Mode
@@ -178,10 +178,10 @@ Best for automation and CI/CD.
 
 ```bash
 # Uses config.json for all settings
-python harness_migration.py --non-interactive
+python main.py --non-interactive
 
 # With dry-run and debug
-python harness_migration.py --non-interactive --dry-run --debug
+python main.py --non-interactive --dry-run --debug
 ```
 
 **Requires:** Complete `config.json` with source, destination, and selected pipelines.
@@ -217,7 +217,7 @@ python harness_migration.py --non-interactive --dry-run --debug
 ```
 ┌─ SELECT PIPELINES ─────────────┐
 │ [X] API Deploy Pipeline        │
-│ [ ] Database Migration         │
+│ [ ] Database Replication         │
 │ [X] Frontend Build             │
 │                                │
 │ [OK] [Cancel]                  │
@@ -247,13 +247,13 @@ Use ↑↓ to navigate, Space to toggle [X], Enter to confirm.
     "project": "dest_project_id"
   },
   "options": {
-    "migrate_input_sets": true,
-    "migrate_triggers": true,
+    "replicate_input_sets": true,
+    "replicate_triggers": true,
     "skip_existing": true
   },
   "selected_pipelines": [
     {"identifier": "pipeline1", "name": "API Deploy"},
-    {"identifier": "pipeline2", "name": "DB Migration"}
+    {"identifier": "pipeline2", "name": "DB Replication"}
   ]
 }
 ```
@@ -281,8 +281,8 @@ Interactive mode will prompt for org/project/pipeline selections.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `migrate_input_sets` | boolean | true | Migrate input sets with pipelines |
-| `migrate_triggers` | boolean | true | Migrate triggers with pipelines |
+| `replicate_input_sets` | boolean | true | Migrate input sets with pipelines |
+| `replicate_triggers` | boolean | true | Migrate triggers with pipelines |
 | `skip_existing` | boolean | true | Skip pipelines that already exist |
 
 ---
@@ -297,7 +297,7 @@ Interactive mode will prompt for org/project/pipeline selections.
 - Auto-updated: `orgIdentifier` and `projectIdentifier`
 
 **Input Sets:**
-- All input sets for migrated pipelines
+- All input sets for replicated pipelines
 - Overlay input sets
 - Maintains relationship with parent pipelines
 - Auto-updated: `orgIdentifier` and `projectIdentifier`
@@ -306,7 +306,7 @@ Interactive mode will prompt for org/project/pipeline selections.
 - Pipeline templates referenced by pipelines
 - Step group templates
 - Stage templates
-- Auto-migrated when pipeline dependencies are detected
+- Auto-replicated when pipeline dependencies are detected
 - Auto-updated: `orgIdentifier` and `projectIdentifier`
 
 **Triggers:**
@@ -315,11 +315,11 @@ Interactive mode will prompt for org/project/pipeline selections.
 - All trigger types supported by Harness
 - Migrated after input sets (triggers may reference input sets)
 - Auto-updated: `orgIdentifier` and `projectIdentifier`
-- **Note:** Disabled by default, use `--migrate-triggers` to enable
+- **Note:** Disabled by default, use `--replicate-triggers` to enable
 
 ### ❌ NOT Migrated
 
-The following are **not** migrated:
+The following are **not** replicated:
 
 - Connectors
 - Secrets
@@ -338,7 +338,7 @@ The following are **not** migrated:
 
 **Basic Options:**
 ```bash
-python harness_migration.py [OPTIONS]
+python main.py [OPTIONS]
 
 Options:
   --config CONFIG          Path to config file (default: config.json)
@@ -364,10 +364,10 @@ Options:
   --dest-project PROJ      Destination project identifier
 ```
 
-**Migration Options:**
+**Replication Options:**
 ```bash
-  --migrate-input-sets     Migrate input sets with pipelines (default: true)
-  --no-migrate-input-sets  Skip migrating input sets
+  --replicate-input-sets     Migrate input sets with pipelines (default: true)
+  --no-replicate-input-sets  Skip migrating input sets
   --skip-existing          Skip pipelines that already exist (default: true)
   --no-skip-existing       Update/overwrite existing pipelines
 ```
@@ -385,31 +385,31 @@ Options:
 **Interactive Mode:**
 ```bash
 # Interactive with dry-run (recommended first)
-python harness_migration.py --dry-run
+python main.py --dry-run
 
 # Interactive actual migration
-python harness_migration.py
+python main.py
 
 # Override specific values via CLI
-python harness_migration.py --source-org my_org --dest-org target_org
+python main.py --source-org my_org --dest-org target_org
 ```
 
 **Non-Interactive Mode:**
 ```bash
 # Use config file only
-python harness_migration.py --non-interactive
+python main.py --non-interactive
 
 # Override config with CLI args
-python harness_migration.py --non-interactive --no-migrate-input-sets
+python main.py --non-interactive --no-replicate-input-sets
 
 # Custom config file
-python harness_migration.py --config prod.json --non-interactive
+python main.py --config prod.json --non-interactive
 ```
 
 **Full CLI Configuration:**
 ```bash
 # Minimal config file needed (just API keys)
-python harness_migration.py \
+python main.py \
   --source-url https://app.harness.io \
   --source-api-key sat.xxxxx.xxxxx.xxxxx \
   --source-org source_org \
@@ -420,22 +420,22 @@ python harness_migration.py \
   --dest-project dest_project
 
 # With migration options
-python harness_migration.py \
+python main.py \
   --source-url https://app.harness.io \
   --source-api-key sat.xxxxx.xxxxx.xxxxx \
   --dest-url https://app3.harness.io \
   --dest-api-key sat.yyyyy.yyyyy.yyyyy \
-  --no-migrate-input-sets \
+  --no-replicate-input-sets \
   --no-skip-existing
 ```
 
 **Debug and Testing:**
 ```bash
 # Debug mode for troubleshooting
-python harness_migration.py --debug
+python main.py --debug
 
 # Combined flags
-python harness_migration.py --non-interactive --dry-run --debug
+python main.py --non-interactive --dry-run --debug
 ```
 
 ---
@@ -492,7 +492,7 @@ ERROR - Destination organization 'my_org' does not exist
 Enable detailed logging:
 
 ```bash
-python harness_migration.py --debug
+python main.py --debug
 ```
 
 Shows:
@@ -517,17 +517,17 @@ grep ERROR migration_*.log
 
 ## Best Practices
 
-### Before Migration
+### Before Replication
 
 1. **Always dry-run first**
    ```bash
-   python harness_migration.py --dry-run
+   python main.py --dry-run
    ```
 
 2. **Start small**
    - Migrate 1-2 test pipelines first
    - Verify they work
-   - Then migrate the rest
+   - Then replicate the rest
 
 3. **Check dependencies**
    - Verify connectors exist in destination
@@ -538,7 +538,7 @@ grep ERROR migration_*.log
    - Source: View pipelines and input sets
    - Destination: Create orgs, projects, pipelines, input sets
 
-### During Migration
+### During Replication
 
 1. **Monitor logs in real-time**
    ```bash
@@ -549,7 +549,7 @@ grep ERROR migration_*.log
    - Let migration complete
    - If interrupted, re-run with `skip_existing: true`
 
-### After Migration
+### After Replication
 
 1. **Validate pipelines**
    - Open each pipeline in Harness UI
@@ -574,11 +574,11 @@ grep ERROR migration_*.log
 
 ## FAQ
 
-### Can I migrate between different organizations?
+### Can I replicate between different organizations?
 
 Yes! Specify different org/project for source and destination.
 
-### Can I migrate between app.harness.io and app3.harness.io?
+### Can I replicate between app.harness.io and app3.harness.io?
 
 Yes! The tool supports cross-instance migration.
 
@@ -586,7 +586,7 @@ Yes! The tool supports cross-instance migration.
 
 The YAML references remain unchanged. Ensure those connectors/secrets exist in destination with the same identifiers.
 
-### Can I migrate just one pipeline?
+### Can I replicate just one pipeline?
 
 Yes! Select only the pipeline(s) you want in interactive mode, or specify in config:
 ```json
@@ -603,7 +603,7 @@ Yes, automatically if you have permissions.
 
 ### Can I resume a failed migration?
 
-Yes! Set `skip_existing: true` and re-run. Already-migrated pipelines will be skipped.
+Yes! Set `skip_existing: true` and re-run. Already-replicated pipelines will be skipped.
 
 ### How do I know if migration succeeded?
 
@@ -635,7 +635,7 @@ Harness v1 API: `/v1/orgs/{org}/projects/{project}/pipelines`
 
 ## Advanced Usage
 
-### Selective Migration
+### Selective Replication
 
 Migrate specific pipelines only:
 
@@ -670,20 +670,20 @@ cat > config.json <<EOF
     "project": "${DEST_PROJECT}"
   },
   "options": {
-    "migrate_input_sets": true,
+    "replicate_input_sets": true,
     "skip_existing": true
   }
 }
 EOF
 
 # Run migration
-python harness_migration.py --non-interactive
+python main.py --non-interactive
 
 # Check result
 if [ $? -eq 0 ]; then
-  echo "✓ Migration successful"
+  echo "✓ Replication successful"
 else
-  echo "✗ Migration failed"
+  echo "✗ Replication failed"
   exit 1
 fi
 ```
@@ -748,28 +748,28 @@ fi
 chmod +x setup.sh && ./setup.sh
 
 # Dry-run (always start here)
-python harness_migration.py --dry-run
+python main.py --dry-run
 
 # Interactive
-python harness_migration.py
+python main.py
 
 # Non-interactive
-python harness_migration.py --non-interactive
+python main.py --non-interactive
 
 # Debug
-python harness_migration.py --debug
+python main.py --debug
 ```
 
 ### CLI Configuration Examples
 ```bash
 # Override specific values
-python harness_migration.py --source-org my_org --dest-org target_org
+python main.py --source-org my_org --dest-org target_org
 
 # Override migration options
-python harness_migration.py --no-migrate-input-sets --no-skip-existing
+python main.py --no-replicate-input-sets --no-skip-existing
 
 # Full CLI configuration
-python harness_migration.py \
+python main.py \
   --source-url https://app.harness.io \
   --source-api-key sat.xxxxx.xxxxx.xxxxx \
   --source-org source_org \
@@ -804,7 +804,7 @@ python harness_migration.py \
 
 ---
 
-**Ready to migrate?** `python harness_migration.py --dry-run`
+**Ready to replicate?** `python main.py --dry-run`
 
 ### Alternative Usage Methods
 
@@ -812,10 +812,10 @@ You can also use the modular src package directly:
 
 ```bash
 # Using the src package as a module
-python -m src.harness_migration --config config.json --dry-run
+python -m src --config config.json --dry-run
 
 # Using the main entry point (recommended)
-python harness_migration.py --config config.json --dry-run
+python main.py --config config.json --dry-run
 ```
 
 Both methods provide identical functionality - choose whichever feels more natural to you!
