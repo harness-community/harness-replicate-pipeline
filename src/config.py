@@ -47,22 +47,52 @@ def load_config(config_file: str) -> Dict[str, Any]:
 
 def _apply_env_overrides(config: Dict[str, Any]) -> Dict[str, Any]:
     """Apply environment variable overrides to configuration (step 2 in priority order)"""
+    # String configuration options with environment variable support
+    string_env_mappings = {
+        "HARNESS_SOURCE_URL": ("source", "base_url"),
+        "HARNESS_SOURCE_API_KEY": ("source", "api_key"),
+        "HARNESS_SOURCE_ORG": ("source", "org"),
+        "HARNESS_SOURCE_PROJECT": ("source", "project"),
+        "HARNESS_DEST_URL": ("destination", "base_url"),
+        "HARNESS_DEST_API_KEY": ("destination", "api_key"),
+        "HARNESS_DEST_ORG": ("destination", "org"),
+        "HARNESS_DEST_PROJECT": ("destination", "project"),
+    }
+    
     # Boolean options with environment variable support
-    env_mappings = {
+    bool_env_mappings = {
         "HARNESS_SKIP_INPUT_SETS": ("options", "skip_input_sets"),
         "HARNESS_SKIP_TRIGGERS": ("options", "skip_triggers"),
         "HARNESS_SKIP_TEMPLATES": ("options", "skip_templates"),
         "HARNESS_UPDATE_EXISTING": ("options", "update_existing"),
+        "HARNESS_DRY_RUN": ("", "dry_run"),
+        "HARNESS_DEBUG": ("", "debug"),
+        "HARNESS_NON_INTERACTIVE": ("", "non_interactive"),
     }
     
-    for env_var, (section, key) in env_mappings.items():
+    # Apply string environment variables
+    for env_var, (section, key) in string_env_mappings.items():
+        env_value = os.getenv(env_var)
+        if env_value is not None:
+            if section:
+                config.setdefault(section, {})[key] = env_value
+                logger.info("Environment override: %s -> %s.%s=%s", env_var, section, key, env_value)
+            else:
+                config[key] = env_value
+                logger.info("Environment override: %s -> %s=%s", env_var, key, env_value)
+    
+    # Apply boolean environment variables
+    for env_var, (section, key) in bool_env_mappings.items():
         env_value = os.getenv(env_var)
         if env_value is not None:
             # Convert string to boolean
             bool_value = env_value.lower() in ('true', '1', 'yes', 'on')
-            config.setdefault(section, {})[key] = bool_value
-            logger.info("Environment override: %s=%s -> %s.%s=%s",
-                        env_var, env_value, section, key, bool_value)
+            if section:
+                config.setdefault(section, {})[key] = bool_value
+                logger.info("Environment override: %s=%s -> %s.%s=%s", env_var, env_value, section, key, bool_value)
+            else:
+                config[key] = bool_value
+                logger.info("Environment override: %s=%s -> %s=%s", env_var, env_value, key, bool_value)
     
     return config
 
