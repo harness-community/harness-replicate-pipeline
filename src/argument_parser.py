@@ -52,7 +52,7 @@ Usage Examples:
     python main.py --source-org my_org --dest-org target_org
 
     # Override replication options
-    python main.py --no-replicate-triggers --no-replicate-input-sets --no-skip-existing
+    python main.py --skip-triggers --skip-input-sets --update-existing
 
     # Full CLI configuration (minimal config file needed)
     python main.py \\
@@ -89,9 +89,10 @@ Configuration File Format (supports JSONC with comments):
     // "project": "dest_project"  // Leave commented to select interactively
   },
   "options": {
-    "replicate_input_sets": true,
-    "replicate_triggers": true,
-    "skip_existing": true
+    "skip_input_sets": false,
+    "skip_triggers": false,
+    "skip_templates": false,
+    "update_existing": false
   }
 }
         """
@@ -176,34 +177,24 @@ Configuration File Format (supports JSONC with comments):
     def _add_replication_options(parser: argparse.ArgumentParser) -> None:
         """Add replication option arguments"""
         parser.add_argument(
-            "--replicate-input-sets",
+            "--skip-input-sets",
             action="store_true",
-            help="Replicate input sets with pipelines (default: true)",
+            help="Skip replicating input sets (default: replicate input sets)",
         )
         parser.add_argument(
-            "--no-replicate-input-sets",
-            action="store_true",
-            help="Skip replicating input sets",
-        )
-        parser.add_argument(
-            "--no-replicate-triggers",
+            "--skip-triggers",
             action="store_true",
             help="Skip replicating triggers (default: replicate triggers)",
         )
         parser.add_argument(
-            "--replicate-triggers",
+            "--skip-templates",
             action="store_true",
-            help="Force replicate triggers (default behavior, kept for compatibility)",
+            help="Skip replicating missing templates (default: replicate templates)",
         )
         parser.add_argument(
-            "--skip-existing",
+            "--update-existing",
             action="store_true",
-            help="Skip pipelines that already exist in destination (default: true)",
-        )
-        parser.add_argument(
-            "--no-skip-existing",
-            action="store_true",
-            help="Update/overwrite existing pipelines",
+            help="Update/overwrite existing pipelines (default: skip existing)",
         )
 
     @staticmethod

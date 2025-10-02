@@ -14,8 +14,9 @@
     "project": "dest_project_identifier"
   },
   "options": {
-    "replicate_input_sets": true,
-    "replicate_triggers": true,
-    "skip_existing": true
+    "skip_input_sets": false,
+    "skip_triggers": false,
+    "skip_templates": false,
+    "update_existing": false
   }
 }
