@@ -315,3 +315,146 @@ def get_selections_from_clients(source_client, dest_client, base_config: Dict[st
         save_config(base_config, config_file)
 
     return base_config
+
+
+def get_interactive_selections(source_client, dest_client, base_config: Dict[str, Any],
+                              config_file: str) -> Dict[str, Any]:
+    """Get user selections with interactive dialogs - always show dialogs even if values exist"""
+    from .config import save_config
+    from prompt_toolkit.shortcuts import yes_no_dialog
+
+    # Source organization - always show dialog
+    current_source_org = base_config.get("source", {}).get("org")
+    if current_source_org:
+        # Ask if user wants to change the current selection
+        keep_source_org = yes_no_dialog(
+            title="Source Organization",
+            text=f"Current source organization: '{current_source_org}'\n\n"
+                 f"Keep this selection?"
+        ).run()
+        
+        if not keep_source_org:
+            source_org = select_organization(source_client, "SELECT NEW SOURCE ORGANIZATION")
+            if not source_org:
+                return {}
+            base_config.setdefault("source", {})["org"] = source_org
+            save_config(base_config, config_file)
+        else:
+            source_org = current_source_org
+    else:
+        source_org = select_organization(source_client, "SELECT SOURCE ORGANIZATION")
+        if not source_org:
+            return {}
+        base_config.setdefault("source", {})["org"] = source_org
+        save_config(base_config, config_file)
+
+    # Source project - always show dialog
+    current_source_project = base_config.get("source", {}).get("project")
+    if current_source_project:
+        # Ask if user wants to change the current selection
+        keep_source_project = yes_no_dialog(
+            title="Source Project",
+            text=f"Current source project: '{current_source_project}'\n\n"
+                 f"Keep this selection?"
+        ).run()
+        
+        if not keep_source_project:
+            source_project = select_project(source_client, source_org, "SELECT NEW SOURCE PROJECT")
+            if not source_project:
+                return {}
+            base_config.setdefault("source", {})["project"] = source_project
+            save_config(base_config, config_file)
+        else:
+            source_project = current_source_project
+    else:
+        source_project = select_project(source_client, source_org, "SELECT SOURCE PROJECT")
+        if not source_project:
+            return {}
+        base_config.setdefault("source", {})["project"] = source_project
+        save_config(base_config, config_file)
+
+    # Source pipelines - always show dialog
+    current_pipelines = base_config.get("pipelines", [])
+    if current_pipelines:
+        # Show current pipelines and ask if user wants to change
+        pipeline_names = [p.get("name", p.get("identifier", "Unknown")) for p in current_pipelines]
+        pipeline_list = "\n".join(f"  - {name}" for name in pipeline_names)
+        
+        keep_pipelines = yes_no_dialog(
+            title="Pipeline Selection",
+            text=f"Current selected pipelines ({len(current_pipelines)}):\n{pipeline_list}\n\n"
+                 f"Keep this selection?"
+        ).run()
+        
+        if not keep_pipelines:
+            pipelines = select_pipelines(source_client, source_org, source_project,
+                                       "SELECT NEW PIPELINES TO MIGRATE")
+            if not pipelines:
+                return {}
+            base_config["pipelines"] = pipelines
+            save_config(base_config, config_file)
+        else:
+            pipelines = current_pipelines
+    else:
+        pipelines = select_pipelines(source_client, source_org, source_project,
+                                   "SELECT PIPELINES TO MIGRATE")
+        if not pipelines:
+            return {}
+        base_config["pipelines"] = pipelines
+        save_config(base_config, config_file)
+
+    # Destination organization - always show dialog
+    current_dest_org = base_config.get("destination", {}).get("org")
+    if current_dest_org:
+        # Ask if user wants to change the current selection
+        keep_dest_org = yes_no_dialog(
+            title="Destination Organization",
+            text=f"Current destination organization: '{current_dest_org}'\n\n"
+                 f"Keep this selection?"
+        ).run()
+        
+        if not keep_dest_org:
+            dest_org = select_or_create_organization(dest_client,
+                                                   "SELECT OR CREATE NEW DESTINATION ORGANIZATION")
+            if not dest_org:
+                return {}
+            base_config.setdefault("destination", {})["org"] = dest_org
+            save_config(base_config, config_file)
+        else:
+            dest_org = current_dest_org
+    else:
+        dest_org = select_or_create_organization(dest_client,
+                                               "SELECT OR CREATE DESTINATION ORGANIZATION")
+        if not dest_org:
+            return {}
+        base_config.setdefault("destination", {})["org"] = dest_org
+        save_config(base_config, config_file)
+
+    # Destination project - always show dialog
+    current_dest_project = base_config.get("destination", {}).get("project")
+    if current_dest_project:
+        # Ask if user wants to change the current selection
+        keep_dest_project = yes_no_dialog(
+            title="Destination Project",
+            text=f"Current destination project: '{current_dest_project}'\n\n"
+                 f"Keep this selection?"
+        ).run()
+        
+        if not keep_dest_project:
+            dest_project = select_or_create_project(dest_client, dest_org,
+                                                   "SELECT OR CREATE NEW DESTINATION PROJECT")
+            if not dest_project:
+                return {}
+            base_config.setdefault("destination", {})["project"] = dest_project
+            save_config(base_config, config_file)
+        else:
+            dest_project = current_dest_project
+    else:
+        dest_project = select_or_create_project(dest_client, dest_org,
+                                               "SELECT OR CREATE DESTINATION PROJECT")
+        if not dest_project:
+            return {}
+        base_config.setdefault("destination", {})["project"] = dest_project
+        save_config(base_config, config_file)
+
+    return base_config

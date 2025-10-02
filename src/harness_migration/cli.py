@@ -65,9 +65,9 @@ def non_interactive_mode(config_file: str) -> Dict[str, Any]:
     return config
 
 
-def hybrid_mode(config_file: str) -> Dict[str, Any]:
-    """Hybrid mode - use config file with interactive prompts for missing values"""
-    logger.info("Running in hybrid mode")
+def interactive_mode(config_file: str) -> Dict[str, Any]:
+    """Interactive mode - show dialogs for all selections, allowing review/modification of existing values"""
+    logger.info("Running in interactive mode")
 
     config = load_config(config_file)
     if not config:
@@ -89,8 +89,9 @@ def hybrid_mode(config_file: str) -> Dict[str, Any]:
     source_client = HarnessAPIClient(source_config["base_url"], source_config["api_key"])
     dest_client = HarnessAPIClient(dest_config["base_url"], dest_config["api_key"])
 
-    # Get user selections
-    config = get_selections_from_clients(source_client, dest_client, config, config_file)
+    # Get user selections with interactive dialogs (always show, even if values exist)
+    from .ui import get_interactive_selections
+    config = get_interactive_selections(source_client, dest_client, config, config_file)
     if not config:
         logger.error("Failed to get required selections")
         sys.exit(1)
@@ -104,8 +105,12 @@ def main():
         description="Migrate Harness pipelines between accounts",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
+Modes:
+    Interactive (default): Always show dialogs to review/modify all selections
+    Non-interactive:       Use config file values only, no dialogs
+
 Usage Examples:
-    # Interactive mode (with dialogs for selection)
+    # Interactive mode (default) - always show dialogs for review/confirmation
     python -m harness_migration
 
     # Non-interactive mode (use all values from config file)
@@ -254,14 +259,15 @@ Configuration File Format (supports JSONC with comments):
     if args.non_interactive:
         config = non_interactive_mode(args.config)
     else:
-        # Use hybrid mode with interactive prompts
-        config = hybrid_mode(args.config)
+        # Use interactive mode by default (always show dialogs)
+        config = interactive_mode(args.config)
 
     # Apply CLI argument overrides (priority: config file > CLI args > interactive)
     config = apply_cli_overrides(config, args)
 
-    # Add dry-run flag to config
+    # Add dry-run and non-interactive flags to config
     config["dry_run"] = args.dry_run
+    config["non_interactive"] = args.non_interactive
 
     # Run migration
     migrator = HarnessMigrator(config)
