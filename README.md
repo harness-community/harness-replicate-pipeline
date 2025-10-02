@@ -411,6 +411,12 @@ Options:
   --update-existing        Update existing pipelines (default: skip existing)
 ```
 
+**Output Options:**
+```bash
+  --output-json            Output in JSON format for automation (default: terminal)
+  --output-color           Enable colored terminal output (default: false)
+```
+
 ### Configuration Priority
 
 **Priority Order:** `Config file > Environment Variables > CLI arguments > Interactive prompts`
@@ -439,6 +445,12 @@ You can override any configuration option using environment variables:
 | `HARNESS_SKIP_TEMPLATES` | `options.skip_templates` | Skip replicating templates |
 | `HARNESS_UPDATE_EXISTING` | `options.update_existing` | Update existing pipelines |
 
+**Output Options:**
+| Environment Variable | Config Option | Description |
+|---------------------|---------------|-------------|
+| `HARNESS_OUTPUT_JSON` | `options.output_json` | Output in JSON format for automation |
+| `HARNESS_OUTPUT_COLOR` | `options.output_color` | Enable colored terminal output |
+
 **Runtime Flags:**
 | Environment Variable | CLI Equivalent | Description |
 |---------------------|---------------|-------------|
@@ -459,6 +471,10 @@ export HARNESS_DEST_API_KEY=sat.yyyyy.yyyyy.yyyyy
 # Replication options via environment variables
 export HARNESS_SKIP_INPUT_SETS=true
 export HARNESS_UPDATE_EXISTING=true
+
+# Output options via environment variables
+export HARNESS_OUTPUT_JSON=true
+export HARNESS_OUTPUT_COLOR=true
 
 # Runtime flags via environment variables
 export HARNESS_DRY_RUN=true
@@ -527,6 +543,19 @@ python main.py \
   --update-existing
 ```
 
+**Output Formatting:**
+```bash
+# JSON output for automation/scripting
+python main.py --output-json --non-interactive
+
+# Enable colors for terminal output
+python main.py --output-color
+
+# JSON output with environment variables
+export HARNESS_OUTPUT_JSON=true
+python main.py --non-interactive
+```
+
 **Debug and Testing:**
 ```bash
 # Debug mode for troubleshooting
@@ -534,7 +563,118 @@ python main.py --debug
 
 # Combined flags
 python main.py --non-interactive --dry-run --debug
+
+# JSON output with debug info
+python main.py --output-json --debug --non-interactive
 ```
+
+---
+
+## Output Formats
+
+The tool supports two output formats to accommodate different use cases:
+
+### Terminal Output (Default)
+
+**Features:**
+- Colored output for better readability
+- Real-time progress updates
+- Formatted summary tables
+- Enhanced error messages with context
+
+**Example:**
+```
+12:30:45 [INFO] [replicator] Starting Harness Pipeline Replication
+12:30:45 [INFO] [replicator] Source: source_org/source_project
+12:30:45 [INFO] [replicator] Destination: dest_org/dest_project
+12:30:46 [SUCCESS] [pipeline] Pipeline 'api_deploy' replicated successfully
+12:30:47 [WARNING] [template] Template 'shared_template' not found, auto-replicating
+12:30:48 [ERROR] [validation] Pipeline validation failed: missing required field
+
+==================================================
+REPLICATION SUMMARY
+==================================================
+
+PIPELINES:
+  Success: 5
+  Failed: 1
+  Skipped: 2
+
+TEMPLATES:
+  Success: 3
+  Failed: 0
+  Skipped: 1
+==================================================
+```
+
+### JSON Output (Automation)
+
+**Features:**
+- Structured data for programmatic processing
+- Standardized error schemas
+- Complete message history
+- Machine-readable format
+
+**Example:**
+```json
+{
+  "timestamp": "2023-10-02T12:30:48.123456",
+  "type": "summary",
+  "data": {
+    "pipelines": {"success": 5, "failed": 1, "skipped": 2},
+    "templates": {"success": 3, "failed": 0, "skipped": 1}
+  },
+  "messages": [
+    {
+      "timestamp": "2023-10-02T12:30:45.123456",
+      "level": "info",
+      "category": "replicator",
+      "message": "Starting Harness Pipeline Replication",
+      "data": {}
+    },
+    {
+      "timestamp": "2023-10-02T12:30:48.123456",
+      "level": "error",
+      "category": "validation",
+      "message": "Pipeline validation failed: missing required field",
+      "data": {"pipeline": "test_pipeline", "field": "identifier"}
+    }
+  ]
+}
+```
+
+**Error Schema:**
+```json
+{
+  "timestamp": "2023-10-02T12:30:48.123456",
+  "type": "error",
+  "error": {
+    "type": "ValidationError",
+    "message": "Pipeline validation failed",
+    "context": {
+      "pipeline": "test_pipeline",
+      "field": "identifier",
+      "expected": "string",
+      "received": "null"
+    }
+  }
+}
+```
+
+### Usage Guidelines
+
+**Terminal Output (Interactive Use):**
+- Default for human users
+- Best for development and testing
+- Provides immediate visual feedback
+- Colors disabled by default (use --output-color to enable)
+- Colors automatically disabled in non-TTY environments
+
+**JSON Output (Automation):**
+- Recommended for CI/CD pipelines
+- Enables log parsing and monitoring
+- Structured error handling
+- Consistent data format across runs
 
 ---
 
