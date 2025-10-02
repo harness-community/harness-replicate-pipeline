@@ -269,17 +269,25 @@ class TestHarnessMigrator:
         assert result is False
 
     def test_migrate_template_success(self):
-        """Test migrate_template succeeds"""
+        """Test migrate_template succeeds with real API response format"""
         # Arrange
         template_ref = "my-template"
         version_label = "v1.0"
+        # Use actual API response format that includes nested template.yaml
         template_data = {
-            "template_yaml": """
-            template:
-              orgIdentifier: source-org
-              projectIdentifier: source-project
-              identifier: my-template
-            """
+            "template": {
+                "yaml": """
+template:
+  orgIdentifier: source-org
+  projectIdentifier: source-project
+  identifier: my-template
+  name: My Template
+  versionLabel: v1.0
+                """,
+                "identifier": "my-template",
+                "name": "My Template"
+            },
+            "inputs": []
         }
 
         # Act
@@ -305,18 +313,71 @@ class TestHarnessMigrator:
         assert result is False
         assert self.migrator.migration_stats["templates"]["failed"] == 1
 
+    def test_migrate_template_missing_yaml_content(self):
+        """Test migrate_template fails when template has no YAML content"""
+        # Arrange
+        template_ref = "empty-template"
+        version_label = "v1.0"
+        # Simulate API response with template object but no yaml field
+        template_data = {
+            "template": {
+                "identifier": "empty-template",
+                "name": "Empty Template"
+                # Missing "yaml" field - this should cause failure
+            },
+            "inputs": []
+        }
+
+        # Act
+        with patch.object(self.migrator.source_client, 'get', return_value=template_data):
+            result = self.migrator.migrate_template(template_ref, version_label)
+
+        # Assert
+        assert result is False
+        assert self.migrator.migration_stats["templates"]["failed"] == 1
+
+    def test_migrate_template_empty_yaml_content(self):
+        """Test migrate_template fails when template has empty YAML content"""
+        # Arrange
+        template_ref = "empty-yaml-template"
+        version_label = "v1.0"
+        # Simulate API response with empty yaml field
+        template_data = {
+            "template": {
+                "yaml": "",  # Empty YAML should cause failure
+                "identifier": "empty-yaml-template",
+                "name": "Empty YAML Template"
+            },
+            "inputs": []
+        }
+
+        # Act
+        with patch.object(self.migrator.source_client, 'get', return_value=template_data):
+            result = self.migrator.migrate_template(template_ref, version_label)
+
+        # Assert
+        assert result is False
+        assert self.migrator.migration_stats["templates"]["failed"] == 1
+
     def test_migrate_template_dry_run(self):
-        """Test migrate_template in dry run mode"""
+        """Test migrate_template in dry run mode with real API response format"""
         # Arrange
         template_ref = "my-template"
         version_label = "v1.0"
         template_data = {
-            "template_yaml": """
-            template:
-              orgIdentifier: source-org
-              projectIdentifier: source-project
-              identifier: my-template
-            """
+            "template": {
+                "yaml": """
+template:
+  orgIdentifier: source-org
+  projectIdentifier: source-project
+  identifier: my-template
+  name: My Template
+  versionLabel: v1.0
+                """,
+                "identifier": "my-template",
+                "name": "My Template"
+            },
+            "inputs": []
         }
         self.config["dry_run"] = True
 
@@ -390,9 +451,11 @@ class TestHarnessMigrator:
         """Test _create_org_if_missing handles creation failure"""
         # Arrange
         orgs_response = [{"identifier": "other-org", "name": "Other Org"}]
+        # Mock both the initial check and the fallback check to return same response
+        get_responses = [None, orgs_response]  # Direct GET fails, then list GET returns other orgs
 
         # Act
-        with patch.object(self.migrator.dest_client, 'get', return_value=orgs_response):
+        with patch.object(self.migrator.dest_client, 'get', side_effect=get_responses):
             with patch.object(self.migrator.dest_client, 'post', return_value=None):
                 result = self.migrator._create_org_if_missing()
 
@@ -429,9 +492,11 @@ class TestHarnessMigrator:
         """Test _create_project_if_missing handles creation failure"""
         # Arrange
         projects_response = [{"identifier": "other-project", "name": "Other Project"}]
+        # Mock both the initial check and the fallback check to return same response
+        get_responses = [None, projects_response]  # Direct GET fails, then list GET returns other projects
 
         # Act
-        with patch.object(self.migrator.dest_client, 'get', return_value=projects_response):
+        with patch.object(self.migrator.dest_client, 'get', side_effect=get_responses):
             with patch.object(self.migrator.dest_client, 'post', return_value=None):
                 result = self.migrator._create_project_if_missing()
 

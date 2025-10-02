@@ -29,7 +29,7 @@ class TestHarnessAPIClient:
         # Assert
         assert client.base_url == "https://test.com"
         assert client.api_key == "test-key"
-        assert client.session.headers["Authorization"] == "Bearer test-key"
+        assert client.session.headers["x-api-key"] == "test-key"
         assert client.session.headers["Content-Type"] == "application/json"
 
     def test_init_strips_trailing_slash_from_base_url(self):
@@ -246,6 +246,132 @@ class TestHarnessAPIClient:
 
         # Assert
         assert result == []
+
+    def test_normalize_response_with_nested_org_objects(self):
+        """Test normalize_response extracts nested org objects from Harness API format"""
+        # Arrange - Real Harness API format for organizations
+        response = [
+            {
+                "org": {
+                    "identifier": "tf_organization",
+                    "name": "TF Organization",
+                    "description": "Test org"
+                },
+                "created": 1728910106483,
+                "updated": 1728910106484
+            },
+            {
+                "org": {
+                    "identifier": "default",
+                    "name": "Default",
+                    "description": "Default org"
+                },
+                "created": 1728910106483,
+                "updated": 1728910106484
+            }
+        ]
+
+        # Act
+        result = HarnessAPIClient.normalize_response(response)
+
+        # Assert
+        expected = [
+            {
+                "identifier": "tf_organization",
+                "name": "TF Organization",
+                "description": "Test org"
+            },
+            {
+                "identifier": "default",
+                "name": "Default",
+                "description": "Default org"
+            }
+        ]
+        assert result == expected
+
+    def test_normalize_response_with_nested_project_objects(self):
+        """Test normalize_response extracts nested project objects from Harness API format"""
+        # Arrange - Real Harness API format for projects
+        response = [
+            {
+                "project": {
+                    "identifier": "sandbox",
+                    "name": "Sandbox",
+                    "orgIdentifier": "tf_organization"
+                },
+                "created": 1728910106483,
+                "updated": 1728910106484
+            }
+        ]
+
+        # Act
+        result = HarnessAPIClient.normalize_response(response)
+
+        # Assert
+        expected = [
+            {
+                "identifier": "sandbox",
+                "name": "Sandbox",
+                "orgIdentifier": "tf_organization"
+            }
+        ]
+        assert result == expected
+
+    def test_normalize_response_with_mixed_nested_and_direct_objects(self):
+        """Test normalize_response handles mix of nested and direct objects"""
+        # Arrange - Mix of formats
+        response = [
+            {
+                "org": {
+                    "identifier": "nested_org",
+                    "name": "Nested Org"
+                }
+            },
+            {
+                "identifier": "direct_item",
+                "name": "Direct Item"
+            }
+        ]
+
+        # Act
+        result = HarnessAPIClient.normalize_response(response)
+
+        # Assert
+        expected = [
+            {
+                "identifier": "nested_org",
+                "name": "Nested Org"
+            },
+            {
+                "identifier": "direct_item",
+                "name": "Direct Item"
+            }
+        ]
+        assert result == expected
+
+    def test_normalize_response_with_string_org_field(self):
+        """Test normalize_response handles string org field (not nested object)"""
+        # Arrange - Template format where org is a string identifier
+        response = [
+            {
+                "org": "tf_organization",  # String, not object
+                "identifier": "template1",
+                "name": "Template 1"
+            }
+        ]
+
+        # Act
+        result = HarnessAPIClient.normalize_response(response)
+
+        # Assert - Should return item as-is since org is not a nested object
+        expected = [
+            {
+                "org": "tf_organization",
+                "identifier": "template1",
+                "name": "Template 1"
+            }
+        ]
+        assert result == expected
 
     @patch('src.harness_migration.api_client.requests.Session.get')
     def test_get_logs_debug_message(self, mock_get):
