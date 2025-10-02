@@ -1,0 +1,21 @@
+{
+  "integration_test": {
+    "test_resources": {
+      "pipeline": {
+        "identifier": "test-migration-pipeline",
+        "name": "Test Migration Pipeline",
+        "yaml": "pipeline:\n  orgIdentifier: test-migration-org\n  projectIdentifier: test-migration-project\n  identifier: test-migration-pipeline\n  name: Test Migration Pipeline\n  stages:\n    - stage:\n        identifier: stage1\n        name: stage1\n        type: CI\n        spec:\n          execution:\n            steps:\n              - step:\n                  identifier: step1\n                  name: step1\n                  type: Run\n                  spec:\n                    command: echo 'Hello from test pipeline'"
+      },
+      "template": {
+        "identifier": "test-migration-template",
+        "name": "Test Migration Template",
+        "yaml": "template:\n  orgIdentifier: test-migration-org\n  projectIdentifier: test-migration-project\n  identifier: test-migration-template\n  name: Test Migration Template\n  versionLabel: v1\n  type: Step\n  spec:\n    type: ShellScript\n    spec:\n      shell: Bash\n      onDelegate: true\n      source:\n        type: Inline\n        spec:\n          script: echo 'Hello from test template'"
+      },
+      "input_set": {
+        "identifier": "test-migration-inputset",
+        "name": "Test Migration Input Set",
+        "yaml": "inputSet:\n  orgIdentifier: test-migration-org\n  projectIdentifier: test-migration-project\n  pipeline:\n    identifier: test-migration-pipeline\n    orgIdentifier: test-migration-org\n    projectIdentifier: test-migration-project\n  identifier: test-migration-inputset\n  name: Test Migration Input Set"
+      }
+    }
+  }
+}
