@@ -88,11 +88,11 @@ class PipelineHandler(BaseReplicator):
             # (input sets and triggers should be replicated even if pipeline already exists)
             if result is not None:  # Only skip if pipeline replication completely failed
                 # Replicate associated input sets
-                if self._get_option("replicate_input_sets", True):
+                if not self._get_option("skip_input_sets", False):
                     inputset_handler.replicate_input_sets(pipeline_id)
                     
                 # Replicate associated triggers (after input sets since triggers may reference them)
-                if self._get_option("replicate_triggers", True):
+                if not self._get_option("skip_triggers", False):
                     trigger_handler.replicate_triggers(pipeline_id)
 
         return True
@@ -107,7 +107,7 @@ class PipelineHandler(BaseReplicator):
         existing_pipeline = self.dest_client.get(existing_endpoint)
 
         if existing_pipeline:
-            if self._get_option("skip_existing", True):
+            if not self._get_option("update_existing", False):
                 logger.info("  Pipeline '%s' already exists, skipping", pipeline_name)
                 return False  # Skipped
             else:

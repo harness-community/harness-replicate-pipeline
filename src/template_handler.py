@@ -94,7 +94,7 @@ class TemplateHandler(BaseReplicator):
 
     def handle_missing_templates(self, templates: List[Tuple[str, Optional[str]]],
                                  pipeline_name: str) -> bool:
-        """Handle missing templates - either replicate them or skip pipeline"""
+        """Handle missing templates - automatically replicate based on configuration"""
         missing_templates = []
         for template_ref, version_label in templates:
             if not self.check_template_exists(template_ref, version_label):
@@ -108,63 +108,15 @@ class TemplateHandler(BaseReplicator):
         for template_ref, version_label in missing_templates:
             logger.warning("    - %s (v%s)", template_ref, version_label or "stable")
 
-        if not self._is_interactive():
+        # Check if template replication is enabled
+        skip_templates = self._get_option("skip_templates", False)
+        
+        if not skip_templates:
             logger.info("  Auto-replicating missing templates...")
             for template_ref, version_label in missing_templates:
                 self.replicate_template(template_ref, version_label)
             return True
-
-        # Ask user what to do
-        choice = self._ask_user_about_templates(missing_templates, pipeline_name)
-        if choice is None:  # Skip pipeline
-            return False
-        elif choice:  # Replicate templates
-            for template_ref, version_label in missing_templates:
-                self.replicate_template(template_ref, version_label)
-            return True
-        else:  # Skip templates
-            logger.warning(
-                "  Continuing without replicating templates (pipeline creation will likely fail)")
-            return True
-
-    def _ask_user_about_templates(self, missing_templates: List[Tuple[str, Optional[str]]],
-                                  pipeline_name: str) -> Optional[bool]:
-        """Ask user interactively what to do about missing templates"""
-        from prompt_toolkit.shortcuts import button_dialog
-
-        template_list = "\n".join(
-            f"    - {ref} (v{version or 'stable'})" for ref, version in missing_templates)
-        text = (
-            f"Pipeline '{pipeline_name}' references {len(missing_templates)} template(s) "
-            f"that don't exist in the destination:\n\n{template_list}\n\n"
-            f"The script can automatically replicate these templates from "
-            f"the source environment.\n\n"
-            f"Do you want to replicate these templates?"
-        )
-
-        choice = button_dialog(
-            title="Missing Templates",
-            text=text,
-            buttons=[
-                ("replicate", "Yes, Replicate Templates"),
-                ("skip_templates", "No, Continue Without Templates"),
-                ("skip", "Skip This Pipeline"),
-            ],
-        ).run()
-
-        logger.debug("  Dialog returned: %s", choice)
-
-        # Handle both button keys and display text for compatibility
-        if choice in ["skip", "Skip This Pipeline"]:
-            logger.info("  ⊘ Skipping pipeline due to missing templates")
-            return None  # Skip pipeline
-        elif choice in ["replicate", "Yes, Replicate Templates"]:
-            logger.info("  → User chose to replicate templates")
-            return True
-        elif choice in ["skip_templates", "No, Continue Without Templates"]:
-            logger.info("  → User chose to skip templates")
-            return False
         else:
-            logger.warning(
-                "  ⚠ Unexpected dialog result: %s, defaulting to skip templates", choice)
-            return False
+            logger.warning("  Template replication disabled, continuing without templates")
+            logger.warning("  Pipeline creation may fail due to missing template dependencies")
+            return True

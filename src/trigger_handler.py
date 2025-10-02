@@ -65,7 +65,7 @@ class TriggerHandler(BaseReplicator):
             existing_trigger = self.dest_client.get(existing_trigger_endpoint, params=existing_trigger_params)
 
             if existing_trigger:
-                if self._get_option("skip_existing", True):
+                if not self._get_option("update_existing", False):
                     logger.info("  Trigger '%s' already exists, skipping", trigger_name)
                     self.replication_stats["triggers"]["skipped"] += 1
                     continue
