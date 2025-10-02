@@ -21,6 +21,12 @@ from .inputset_handler import InputSetHandler
 from .trigger_handler import TriggerHandler
 from .yaml_utils import YAMLUtils
 
+# Import CLI components
+from .argument_parser import ArgumentParser
+from .config_validator import ConfigValidator
+from .logging_utils import setup_logging
+from .mode_handlers import ModeHandlers
+
 __all__ = [
     "HarnessAPIClient",
     "HarnessReplicator",
@@ -31,5 +37,9 @@ __all__ = [
     "PipelineHandler",
     "InputSetHandler",
     "TriggerHandler",
-    "YAMLUtils"
+    "YAMLUtils",
+    "ArgumentParser",
+    "ConfigValidator",
+    "setup_logging",
+    "ModeHandlers"
 ]
