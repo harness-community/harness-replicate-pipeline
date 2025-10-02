@@ -417,22 +417,54 @@ Options:
 
 ### Environment Variables
 
-You can override any boolean option using environment variables:
+You can override any configuration option using environment variables:
 
+**Connection Configuration:**
 | Environment Variable | Config Option | Description |
 |---------------------|---------------|-------------|
-| `HARNESS_SKIP_INPUT_SETS` | `skip_input_sets` | Skip replicating input sets |
-| `HARNESS_SKIP_TRIGGERS` | `skip_triggers` | Skip replicating triggers |
-| `HARNESS_SKIP_TEMPLATES` | `skip_templates` | Skip replicating templates |
-| `HARNESS_UPDATE_EXISTING` | `update_existing` | Update existing pipelines |
+| `HARNESS_SOURCE_URL` | `source.base_url` | Source Harness URL |
+| `HARNESS_SOURCE_API_KEY` | `source.api_key` | Source API key |
+| `HARNESS_SOURCE_ORG` | `source.org` | Source organization |
+| `HARNESS_SOURCE_PROJECT` | `source.project` | Source project |
+| `HARNESS_DEST_URL` | `destination.base_url` | Destination Harness URL |
+| `HARNESS_DEST_API_KEY` | `destination.api_key` | Destination API key |
+| `HARNESS_DEST_ORG` | `destination.org` | Destination organization |
+| `HARNESS_DEST_PROJECT` | `destination.project` | Destination project |
+
+**Replication Options:**
+| Environment Variable | Config Option | Description |
+|---------------------|---------------|-------------|
+| `HARNESS_SKIP_INPUT_SETS` | `options.skip_input_sets` | Skip replicating input sets |
+| `HARNESS_SKIP_TRIGGERS` | `options.skip_triggers` | Skip replicating triggers |
+| `HARNESS_SKIP_TEMPLATES` | `options.skip_templates` | Skip replicating templates |
+| `HARNESS_UPDATE_EXISTING` | `options.update_existing` | Update existing pipelines |
+
+**Runtime Flags:**
+| Environment Variable | CLI Equivalent | Description |
+|---------------------|---------------|-------------|
+| `HARNESS_DRY_RUN` | `--dry-run` | Perform dry run without changes |
+| `HARNESS_DEBUG` | `--debug` | Enable debug logging |
+| `HARNESS_NON_INTERACTIVE` | `--non-interactive` | Skip interactive prompts |
 
 **Environment Variable Values:** `true`, `1`, `yes`, `on` = true; anything else = false
 
 **Examples:**
 ```bash
-# Environment variables override config file
+# Connection configuration via environment variables
+export HARNESS_SOURCE_URL=https://app.harness.io
+export HARNESS_SOURCE_API_KEY=sat.xxxxx.xxxxx.xxxxx
+export HARNESS_DEST_URL=https://app3.harness.io
+export HARNESS_DEST_API_KEY=sat.yyyyy.yyyyy.yyyyy
+
+# Replication options via environment variables
 export HARNESS_SKIP_INPUT_SETS=true
 export HARNESS_UPDATE_EXISTING=true
+
+# Runtime flags via environment variables
+export HARNESS_DRY_RUN=true
+export HARNESS_DEBUG=true
+export HARNESS_NON_INTERACTIVE=true
+
 python main.py
 
 # CLI arguments override both config file and environment variables
