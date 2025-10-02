@@ -41,7 +41,11 @@ def main():
         config = build_complete_config(args.config, args, interactive_selections)
 
     # Setup logging using the single source of truth
-    setup_logging(debug=config.get("debug", False))
+    setup_logging(
+        debug=config.get("debug", False),
+        output_json=config.get("output_json", False),
+        output_color=config.get("output_color", True)
+    )
 
     # Final validation - check for required variables and declare what must be set
     if not _validate_final_config(config, config.get("non_interactive", False), bool(config.get("pipelines"))):

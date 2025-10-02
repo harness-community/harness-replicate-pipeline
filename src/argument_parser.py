@@ -48,6 +48,12 @@ Usage Examples:
     # Debug mode for troubleshooting
     python main.py --debug
 
+    # JSON output for automation
+    python main.py --output-json --non-interactive
+
+    # Enable colors for terminal output
+    python main.py --output-color
+
     # Override specific values via CLI
     python main.py --source-org my_org --dest-org target_org
 
@@ -92,7 +98,9 @@ Configuration File Format (supports JSONC with comments):
     "skip_input_sets": false,
     "skip_triggers": false,
     "skip_templates": false,
-    "update_existing": false
+    "update_existing": false,
+    "output_json": false,
+    "output_color": false
   }
 }
         """
@@ -123,6 +131,18 @@ Configuration File Format (supports JSONC with comments):
             "--non-interactive",
             action="store_true",
             help="Skip prompts and use all values from config file (no dialogs)",
+        )
+
+        parser.add_argument(
+            "--output-json",
+            action="store_true",
+            help="Output in JSON format for automation integration (default: terminal format)",
+        )
+
+        parser.add_argument(
+            "--output-color",
+            action="store_true",
+            help="Enable colored output for terminal display (default: false, ignored for JSON output)",
         )
 
     @staticmethod
