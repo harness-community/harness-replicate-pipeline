@@ -28,8 +28,13 @@ def main():
     parser = ArgumentParser.create_parser()
     args = parser.parse_args()
 
-    # Setup logging with debug level if requested
-    setup_logging(debug=args.debug)
+    # Setup logging with debug level if requested (check env vars first, then CLI args)
+    debug_mode = args.debug
+    if not debug_mode:
+        # Check environment variable if CLI arg not set
+        import os
+        debug_mode = os.getenv("HARNESS_DEBUG", "").lower() in ('true', '1', 'yes', 'on')
+    setup_logging(debug=debug_mode)
 
     # Steps 1-2: Load config file and environment variables (handled in mode handlers)
     if args.non_interactive:
@@ -41,9 +46,9 @@ def main():
     # Step 3: Always apply CLI argument overrides
     config = apply_cli_overrides(config, args)
 
-    # Add runtime flags to config
-    config["dry_run"] = args.dry_run
-    config["non_interactive"] = args.non_interactive
+    # Add runtime flags to config (CLI args override env vars)
+    config["dry_run"] = args.dry_run or config.get("dry_run", False)
+    config["non_interactive"] = args.non_interactive or config.get("non_interactive", False)
 
     # Step 5: Final validation - check for required variables and declare what must be set
     if not _validate_final_config(config, args.non_interactive, bool(args.pipelines)):
