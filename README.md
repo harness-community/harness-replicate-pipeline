@@ -36,6 +36,30 @@ cp config.example.json config.json
 
 ---
 
+## Project Structure
+
+The toolkit has been refactored into a modular structure for better maintainability:
+
+```
+harness_migration_toolkit/
+├── src/harness_migration/          # Core package
+│   ├── __init__.py               # Package exports
+│   ├── api_client.py             # Harness API interactions
+│   ├── config.py                 # Configuration management
+│   ├── migrator.py               # Migration logic
+│   ├── ui.py                     # Interactive dialogs
+│   ├── cli.py                    # Command-line interface
+│   └── __main__.py              # Module entry point
+├── harness_migration.py          # Main entry point script
+├── tests/                        # Test suite
+├── setup.sh                     # Automated setup
+└── README.md                    # This file
+```
+
+**Usage Options:**
+- **Main script**: `python harness_migration.py` (recommended)
+- **Module**: `python -m src.harness_migration` (alternative)
+
 ## Quick Start
 
 ### Option 1: Automated Setup (Recommended)
@@ -68,10 +92,10 @@ pip install -r requirements.txt
 
 ```bash
 # Interactive mode (recommended for first time)
-python harness_pipeline_migration.py
+python harness_migration.py
 
 # Always test first with dry-run
-python harness_pipeline_migration.py --dry-run
+python harness_migration.py --dry-run
 ```
 
 That's it! The interactive mode guides you through everything.
@@ -132,13 +156,13 @@ Best for first-time use and manual migrations.
 
 ```bash
 # Basic interactive mode
-python harness_pipeline_migration.py
+python harness_migration.py
 
 # With dry-run (recommended first time)
-python harness_pipeline_migration.py --dry-run
+python harness_migration.py --dry-run
 
 # With debug logging
-python harness_pipeline_migration.py --debug
+python harness_migration.py --debug
 ```
 
 **Flow:**
@@ -153,10 +177,10 @@ Best for automation and CI/CD.
 
 ```bash
 # Uses config.json for all settings
-python harness_pipeline_migration.py --non-interactive
+python harness_migration.py --non-interactive
 
 # With dry-run and debug
-python harness_pipeline_migration.py --non-interactive --dry-run --debug
+python harness_migration.py --non-interactive --dry-run --debug
 ```
 
 **Requires:** Complete `config.json` with source, destination, and selected pipelines.
@@ -304,7 +328,7 @@ The following are **not** migrated:
 
 **Basic Options:**
 ```bash
-python harness_pipeline_migration.py [OPTIONS]
+python harness_migration.py [OPTIONS]
 
 Options:
   --config CONFIG          Path to config file (default: config.json)
@@ -351,31 +375,31 @@ Options:
 **Interactive Mode:**
 ```bash
 # Interactive with dry-run (recommended first)
-python harness_pipeline_migration.py --dry-run
+python harness_migration.py --dry-run
 
 # Interactive actual migration
-python harness_pipeline_migration.py
+python harness_migration.py
 
 # Override specific values via CLI
-python harness_pipeline_migration.py --source-org my_org --dest-org target_org
+python harness_migration.py --source-org my_org --dest-org target_org
 ```
 
 **Non-Interactive Mode:**
 ```bash
 # Use config file only
-python harness_pipeline_migration.py --non-interactive
+python harness_migration.py --non-interactive
 
 # Override config with CLI args
-python harness_pipeline_migration.py --non-interactive --no-migrate-input-sets
+python harness_migration.py --non-interactive --no-migrate-input-sets
 
 # Custom config file
-python harness_pipeline_migration.py --config prod.json --non-interactive
+python harness_migration.py --config prod.json --non-interactive
 ```
 
 **Full CLI Configuration:**
 ```bash
 # Minimal config file needed (just API keys)
-python harness_pipeline_migration.py \
+python harness_migration.py \
   --source-url https://app.harness.io \
   --source-api-key sat.xxxxx.xxxxx.xxxxx \
   --source-org source_org \
@@ -386,7 +410,7 @@ python harness_pipeline_migration.py \
   --dest-project dest_project
 
 # With migration options
-python harness_pipeline_migration.py \
+python harness_migration.py \
   --source-url https://app.harness.io \
   --source-api-key sat.xxxxx.xxxxx.xxxxx \
   --dest-url https://app3.harness.io \
@@ -398,10 +422,10 @@ python harness_pipeline_migration.py \
 **Debug and Testing:**
 ```bash
 # Debug mode for troubleshooting
-python harness_pipeline_migration.py --debug
+python harness_migration.py --debug
 
 # Combined flags
-python harness_pipeline_migration.py --non-interactive --dry-run --debug
+python harness_migration.py --non-interactive --dry-run --debug
 ```
 
 ---
@@ -458,7 +482,7 @@ ERROR - Destination organization 'my_org' does not exist
 Enable detailed logging:
 
 ```bash
-python harness_pipeline_migration.py --debug
+python harness_migration.py --debug
 ```
 
 Shows:
@@ -487,7 +511,7 @@ grep ERROR migration_*.log
 
 1. **Always dry-run first**
    ```bash
-   python harness_pipeline_migration.py --dry-run
+   python harness_migration.py --dry-run
    ```
 
 2. **Start small**
@@ -643,7 +667,7 @@ cat > config.json <<EOF
 EOF
 
 # Run migration
-python harness_pipeline_migration.py --non-interactive
+python harness_migration.py --non-interactive
 
 # Check result
 if [ $? -eq 0 ]; then
@@ -714,28 +738,28 @@ fi
 chmod +x setup.sh && ./setup.sh
 
 # Dry-run (always start here)
-python harness_pipeline_migration.py --dry-run
+python harness_migration.py --dry-run
 
 # Interactive
-python harness_pipeline_migration.py
+python harness_migration.py
 
 # Non-interactive
-python harness_pipeline_migration.py --non-interactive
+python harness_migration.py --non-interactive
 
 # Debug
-python harness_pipeline_migration.py --debug
+python harness_migration.py --debug
 ```
 
 ### CLI Configuration Examples
 ```bash
 # Override specific values
-python harness_pipeline_migration.py --source-org my_org --dest-org target_org
+python harness_migration.py --source-org my_org --dest-org target_org
 
 # Override migration options
-python harness_pipeline_migration.py --no-migrate-input-sets --no-skip-existing
+python harness_migration.py --no-migrate-input-sets --no-skip-existing
 
 # Full CLI configuration
-python harness_pipeline_migration.py \
+python harness_migration.py \
   --source-url https://app.harness.io \
   --source-api-key sat.xxxxx.xxxxx.xxxxx \
   --source-org source_org \
@@ -770,4 +794,18 @@ python harness_pipeline_migration.py \
 
 ---
 
-**Ready to migrate?** `python harness_pipeline_migration.py --dry-run`
+**Ready to migrate?** `python harness_migration.py --dry-run`
+
+### Alternative Usage Methods
+
+You can also use the modular src package directly:
+
+```bash
+# Using the src package as a module
+python -m src.harness_migration --config config.json --dry-run
+
+# Using the main entry point (recommended)
+python harness_migration.py --config config.json --dry-run
+```
+
+Both methods provide identical functionality - choose whichever feels more natural to you!
