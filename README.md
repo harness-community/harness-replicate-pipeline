@@ -1,6 +1,7 @@
 # Harness Pipeline Migration Toolkit
 
-A Python tool to migrate Harness pipelines, input sets, and templates between accounts with an intuitive interactive interface.
+A Python tool to migrate Harness pipelines, input sets, and templates between
+Harness accounts with an intuitive interactive interface or CLI option for automation.
 
 ---
 
@@ -86,7 +87,7 @@ pip install -r requirements.txt
 
 1. Login to Harness (app.harness.io or app3.harness.io)
 2. Click your profile → **+API Key** → **+Token**
-3. Copy the token (starts with `sat.`)
+3. Copy the token (starts with `pat.`)
 
 ### 3. Run the Tool
 
