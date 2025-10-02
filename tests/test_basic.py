@@ -11,6 +11,9 @@ def test_always_passes():
 
 def test_basic_math():
     """Another simple test to confirm test discovery."""
-    assert 2 + 2 == 4
-    assert 10 > 5
-    assert "hello" == "hello"
+    result = 2 + 2
+    assert result == 4
+    value = 10
+    assert value > 5
+    text = "hello"
+    assert text == "hello"

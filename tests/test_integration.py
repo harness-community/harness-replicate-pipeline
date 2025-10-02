@@ -22,10 +22,11 @@ Cleanup Commands (run after tests):
 curl -X DELETE "https://your-dest-url/v1/orgs/test-migration-org" \
   -H "x-api-key: your-api-key"
 """
-import os
 import json
-import pytest
+import os
 import time
+
+import pytest
 
 from src.harness_migration.api_client import HarnessAPIClient
 from src.harness_migration.migrator import HarnessMigrator
@@ -281,7 +282,8 @@ pipeline:
 
         # Create a mock source client that returns our test data
         class MockSourceClient:
-            def get(self, endpoint, **kwargs):
+            """Mock source client for testing"""
+            def get(self, endpoint, **_kwargs):
                 if "pipelines" in endpoint:
                     return [source_pipeline_data]
                 return None

@@ -16,6 +16,7 @@ class TestHarnessAPIClient:
 
     def setup_method(self):
         """Setup test fixtures before each test method"""
+        # pylint: disable=attribute-defined-outside-init
         self.base_url = "https://app.harness.io"
         self.api_key = "sat.test.key.12345"
         self.client = HarnessAPIClient(self.base_url, self.api_key)
