@@ -42,17 +42,28 @@ cp config.example.json config.json
 The toolkit has been refactored into a modular structure for better maintainability:
 
 ```
-harness_migration_toolkit/
-├── src/harness_migration/          # Core package
-│   ├── __init__.py               # Package exports
-│   ├── api_client.py             # Harness API interactions
-│   ├── config.py                 # Configuration management
-│   ├── replicator.py               # Replication logic
-│   ├── ui.py                     # Interactive dialogs
-│   ├── cli.py                    # Command-line interface
+harness-replicate-pipeline/
+├── src/                          # Core package (modular architecture)
+│   ├── __init__.py              # Package exports
+│   ├── api_client.py            # Harness API interactions
+│   ├── config.py                # Configuration management
+│   ├── replicator.py            # Main replication orchestrator
+│   ├── ui.py                    # Interactive dialogs
+│   ├── cli.py                   # Main CLI orchestrator
+│   ├── argument_parser.py       # CLI argument parsing
+│   ├── config_validator.py      # Configuration validation
+│   ├── logging_utils.py         # Logging setup
+│   ├── mode_handlers.py         # Interactive/non-interactive modes
+│   ├── base_replicator.py       # Base class for handlers
+│   ├── prerequisite_handler.py  # Org/project creation
+│   ├── template_handler.py      # Template replication
+│   ├── pipeline_handler.py      # Pipeline replication
+│   ├── inputset_handler.py      # Input set replication
+│   ├── trigger_handler.py       # Trigger replication
+│   ├── yaml_utils.py            # YAML manipulation utilities
 │   └── __main__.py              # Module entry point
-├── harness_migration.py          # Main entry point script
-├── tests/                        # Test suite
+├── main.py                      # Primary entry point
+├── tests/                       # Comprehensive test suite
 ├── setup.sh                     # Automated setup
 └── README.md                    # This file
 ```
