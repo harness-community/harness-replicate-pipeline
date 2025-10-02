@@ -29,7 +29,8 @@ def select_organization(client, title: str = "SELECT ORGANIZATION") -> Optional[
             ).run()
             return None
 
-        choices = [(org.get("identifier", ""), org.get("name", org.get("identifier", ""))) for org in orgs]
+        choices = [(org.get("identifier", ""),
+                    org.get("name", org.get("identifier", ""))) for org in orgs]
         choice = radiolist_dialog(
             title=title,
             text="Select an organization:",
@@ -58,7 +59,8 @@ def select_project(client, org: str, title: str = "SELECT PROJECT") -> Optional[
             ).run()
             return None
 
-        choices = [(proj.get("identifier", ""), proj.get("name", proj.get("identifier", ""))) for proj in projects]
+        choices = [(proj.get("identifier", ""),
+                    proj.get("name", proj.get("identifier", ""))) for proj in projects]
         choice = radiolist_dialog(
             title=title,
             text="Select a project:",
@@ -74,7 +76,8 @@ def select_project(client, org: str, title: str = "SELECT PROJECT") -> Optional[
         return None
 
 
-def select_pipelines(client, org: str, project: str, title: str = "SELECT PIPELINES") -> List[Dict[str, str]]:
+def select_pipelines(client, org: str, project: str,
+                     title: str = "SELECT PIPELINES") -> List[Dict[str, str]]:
     """Select pipelines from list (multi-select)"""
     try:
         pipelines_endpoint = f"/v1/orgs/{org}/projects/{project}/pipelines"
@@ -87,7 +90,9 @@ def select_pipelines(client, org: str, project: str, title: str = "SELECT PIPELI
             ).run()
             return []
 
-        choices = [(pipeline.get("identifier", ""), pipeline.get("name", pipeline.get("identifier", ""))) for pipeline in pipelines]
+        choices = [(pipeline.get("identifier", ""),
+                    pipeline.get("name", pipeline.get("identifier", "")))
+                   for pipeline in pipelines]
         selected = checkboxlist_dialog(
             title=title,
             text="Select pipelines to migrate (use Space to select/deselect):",
@@ -115,7 +120,8 @@ def select_pipelines(client, org: str, project: str, title: str = "SELECT PIPELI
         return []
 
 
-def select_or_create_organization(client, title: str = "SELECT OR CREATE ORGANIZATION") -> Optional[str]:
+def select_or_create_organization(client,
+                                  title: str = "SELECT OR CREATE ORGANIZATION") -> Optional[str]:
     """Select existing organization or create new one"""
     try:
         # First try to get existing orgs
@@ -124,7 +130,8 @@ def select_or_create_organization(client, title: str = "SELECT OR CREATE ORGANIZ
         orgs = client.normalize_response(orgs_response)
 
         if orgs:
-            choices = [(org.get("identifier", ""), org.get("name", org.get("identifier", ""))) for org in orgs]
+            choices = [(org.get("identifier", ""),
+                        org.get("name", org.get("identifier", ""))) for org in orgs]
             choices.append(("__create_new__", "Create New Organization"))
 
             choice = radiolist_dialog(
@@ -147,7 +154,8 @@ def select_or_create_organization(client, title: str = "SELECT OR CREATE ORGANIZ
         return None
 
 
-def select_or_create_project(client, org: str, title: str = "SELECT OR CREATE PROJECT") -> Optional[str]:
+def select_or_create_project(client, org: str,
+                             title: str = "SELECT OR CREATE PROJECT") -> Optional[str]:
     """Select existing project or create new one"""
     try:
         # First try to get existing projects
@@ -156,7 +164,8 @@ def select_or_create_project(client, org: str, title: str = "SELECT OR CREATE PR
         projects = client.normalize_response(projects_response)
 
         if projects:
-            choices = [(proj.get("identifier", ""), proj.get("name", proj.get("identifier", ""))) for proj in projects]
+            choices = [(proj.get("identifier", ""),
+                        proj.get("name", proj.get("identifier", ""))) for proj in projects]
             choices.append(("__create_new__", "Create New Project"))
 
             choice = radiolist_dialog(
@@ -252,7 +261,8 @@ def create_project(client, org: str) -> Optional[str]:
         return None
 
 
-def get_selections_from_clients(source_client, dest_client, base_config: Dict[str, Any], config_file: str) -> Dict[str, Any]:
+def get_selections_from_clients(source_client, dest_client, base_config: Dict[str, Any],
+                                config_file: str) -> Dict[str, Any]:
     """Get user selections for source and destination"""
     from .config import save_config
 
@@ -277,7 +287,8 @@ def get_selections_from_clients(source_client, dest_client, base_config: Dict[st
     # Source pipelines
     pipelines = base_config.get("pipelines", [])
     if not pipelines:
-        pipelines = select_pipelines(source_client, source_org, source_project, "SELECT PIPELINES TO MIGRATE")
+        pipelines = select_pipelines(source_client, source_org, source_project,
+                                     "SELECT PIPELINES TO MIGRATE")
         if not pipelines:
             return {}
         base_config["pipelines"] = pipelines
@@ -286,7 +297,8 @@ def get_selections_from_clients(source_client, dest_client, base_config: Dict[st
     # Destination organization
     dest_org = base_config.get("destination", {}).get("org")
     if not dest_org:
-        dest_org = select_or_create_organization(dest_client, "SELECT OR CREATE DESTINATION ORGANIZATION")
+        dest_org = select_or_create_organization(dest_client,
+                                                 "SELECT OR CREATE DESTINATION ORGANIZATION")
         if not dest_org:
             return {}
         base_config.setdefault("destination", {})["org"] = dest_org
@@ -295,7 +307,8 @@ def get_selections_from_clients(source_client, dest_client, base_config: Dict[st
     # Destination project
     dest_project = base_config.get("destination", {}).get("project")
     if not dest_project:
-        dest_project = select_or_create_project(dest_client, dest_org, "SELECT OR CREATE DESTINATION PROJECT")
+        dest_project = select_or_create_project(dest_client, dest_org,
+                                                "SELECT OR CREATE DESTINATION PROJECT")
         if not dest_project:
             return {}
         base_config.setdefault("destination", {})["project"] = dest_project

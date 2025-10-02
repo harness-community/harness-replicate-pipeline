@@ -179,7 +179,8 @@ class HarnessMigrator:
             pass  # Continue with original YAML if version setting fails
 
         # Create template in destination
-        dest_endpoint = self._build_endpoint("templates", org=self.dest_org, project=self.dest_project)
+        dest_endpoint = self._build_endpoint(
+            "templates", org=self.dest_org, project=self.dest_project)
 
         if self._is_dry_run():
             logger.info("  [DRY RUN] Would create template '%s'", template_ref)
@@ -298,7 +299,8 @@ class HarnessMigrator:
         logger.info("  Checking for input sets for pipeline: %s", pipeline_id)
 
         # List input sets
-        endpoint = self._build_endpoint("input-sets", org=self.source_org, project=self.source_project)
+        endpoint = self._build_endpoint(
+            "input-sets", org=self.source_org, project=self.source_project)
         params = {"pipeline": pipeline_id}
         input_sets_response = self.source_client.get(endpoint, params=params)
         input_sets = HarnessAPIClient.normalize_response(input_sets_response)
@@ -316,9 +318,10 @@ class HarnessMigrator:
 
             # Get full input set details
             get_endpoint = self._build_endpoint(
-                "input-sets", org=self.source_org, project=self.source_project, resource_id=input_set_id
-            )
-            input_set_details = self.source_client.get(get_endpoint, params={"pipeline": pipeline_id})
+                "input-sets", org=self.source_org, project=self.source_project,
+                resource_id=input_set_id)
+            input_set_details = self.source_client.get(
+                get_endpoint, params={"pipeline": pipeline_id})
 
             if not input_set_details:
                 logger.error("  Failed to get details for input set: %s", input_set_id)
@@ -328,17 +331,21 @@ class HarnessMigrator:
             # Update org/project identifiers in input set YAML
             if "input_set_yaml" in input_set_details:
                 yaml_content = input_set_details["input_set_yaml"]
-                updated_yaml = self._update_yaml_identifiers(yaml_content, wrapper_key="inputSet")
+                updated_yaml = self._update_yaml_identifiers(
+                    yaml_content, wrapper_key="inputSet")
                 input_set_details["input_set_yaml"] = updated_yaml
 
             # Create input set in destination
-            create_endpoint = self._build_endpoint("input-sets", org=self.dest_org, project=self.dest_project)
+            create_endpoint = self._build_endpoint(
+                "input-sets", org=self.dest_org, project=self.dest_project)
 
             if self._is_dry_run():
                 logger.info("  [DRY RUN] Would create input set '%s'", input_set_name)
                 result = True
             else:
-                result = self.dest_client.post(create_endpoint, params={"pipeline": pipeline_id}, json=input_set_details)
+                result = self.dest_client.post(
+                    create_endpoint, params={"pipeline": pipeline_id},
+                    json=input_set_details)
 
             if result:
                 logger.info("  ✓ Input set '%s' migrated successfully", input_set_name)
@@ -373,8 +380,8 @@ class HarnessMigrator:
 
             # Get pipeline details from source
             pipeline_endpoint = self._build_endpoint(
-                "pipelines", org=self.source_org, project=self.source_project, resource_id=pipeline_id
-            )
+                "pipelines", org=self.source_org, project=self.source_project,
+                resource_id=pipeline_id)
             pipeline_details = self.source_client.get(pipeline_endpoint)
 
             if not pipeline_details:
@@ -421,7 +428,8 @@ class HarnessMigrator:
 
         return True
 
-    def _handle_missing_templates(self, templates: List[Tuple[str, Optional[str]]], pipeline_name: str) -> bool:
+    def _handle_missing_templates(self, templates: List[Tuple[str, Optional[str]]],
+                                  pipeline_name: str) -> bool:
         """Handle missing templates - either migrate them or skip pipeline"""
         missing_templates = []
         for template_ref, version_label in templates:
@@ -431,7 +439,8 @@ class HarnessMigrator:
         if not missing_templates:
             return True
 
-        logger.warning("  Pipeline '%s' references %d missing template(s):", pipeline_name, len(missing_templates))
+        logger.warning("  Pipeline '%s' references %d missing template(s):",
+                       pipeline_name, len(missing_templates))
         for template_ref, version_label in missing_templates:
             logger.warning("    - %s (v%s)", template_ref, version_label or "stable")
 
@@ -450,14 +459,17 @@ class HarnessMigrator:
                 self.migrate_template(template_ref, version_label)
             return True
         else:  # Skip templates
-            logger.warning("  Continuing without migrating templates (pipeline creation will likely fail)")
+            logger.warning(
+                "  Continuing without migrating templates (pipeline creation will likely fail)")
             return True
 
-    def _ask_user_about_templates(self, missing_templates: List[Tuple[str, Optional[str]]], pipeline_name: str) -> Optional[bool]:
+    def _ask_user_about_templates(self, missing_templates: List[Tuple[str, Optional[str]]],
+                                  pipeline_name: str) -> Optional[bool]:
         """Ask user interactively what to do about missing templates"""
         from prompt_toolkit.shortcuts import button_dialog
 
-        template_list = "\n".join(f"    - {ref} (v{version or 'stable'})" for ref, version in missing_templates)
+        template_list = "\n".join(
+            f"    - {ref} (v{version or 'stable'})" for ref, version in missing_templates)
         text = (
             f"Pipeline '{pipeline_name}' references {len(missing_templates)} template(s) "
             f"that don't exist in the destination:\n\n{template_list}\n\n"
@@ -489,15 +501,17 @@ class HarnessMigrator:
             logger.info("  → User chose to skip templates")
             return False
         else:
-            logger.warning("  ⚠ Unexpected dialog result: %s, defaulting to skip templates", choice)
+            logger.warning(
+                "  ⚠ Unexpected dialog result: %s, defaulting to skip templates", choice)
             return False
 
-    def _create_or_update_pipeline(self, pipeline_id: str, pipeline_name: str, pipeline_details: Dict) -> Optional[bool]:
+    def _create_or_update_pipeline(self, pipeline_id: str, pipeline_name: str,
+                                   pipeline_details: Dict) -> Optional[bool]:
         """Create or update a pipeline in the destination"""
         # Check if pipeline already exists
         existing_endpoint = self._build_endpoint(
-            "pipelines", org=self.dest_org, project=self.dest_project, resource_id=pipeline_id
-        )
+            "pipelines", org=self.dest_org, project=self.dest_project,
+            resource_id=pipeline_id)
         existing_pipeline = self.dest_client.get(existing_endpoint)
 
         if existing_pipeline:
@@ -534,7 +548,7 @@ class HarnessMigrator:
 
     def print_summary(self):
         """Print migration summary"""
-        logger.info("\n" + "=" * 50)
+        logger.info("\n%s", "=" * 50)
         logger.info("MIGRATION SUMMARY")
         logger.info("=" * 50)
 
@@ -544,4 +558,4 @@ class HarnessMigrator:
             logger.info("  Failed: %s", stats['failed'])
             logger.info("  Skipped: %s", stats['skipped'])
 
-        logger.info("\n" + "=" * 50)
+        logger.info("\n%s", "=" * 50)

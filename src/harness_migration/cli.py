@@ -44,9 +44,9 @@ def non_interactive_mode(config_file: str) -> Dict[str, Any]:
 
     # Validate required fields
     required_fields = [
-        ("source", "base_url"), ("source", "api_key"), ("source", "org"), ("source", "project"),
-        ("destination", "base_url"), ("destination", "api_key"), ("destination", "org"), ("destination", "project"),
-        ("pipelines", None)
+        ("source", "base_url"), ("source", "api_key"), ("source", "org"),
+        ("source", "project"), ("destination", "base_url"), ("destination", "api_key"),
+        ("destination", "org"), ("destination", "project"), ("pipelines", None)
     ]
 
     for field_path in required_fields:

@@ -42,7 +42,8 @@ class HarnessAPIClient:
                 logger.error("Response Text: %s", e.response.text)
             return None
 
-    def post(self, endpoint: str, params: Optional[Dict] = None, json: Optional[Dict] = None) -> Optional[Union[Dict, List]]:
+    def post(self, endpoint: str, params: Optional[Dict] = None,
+             json: Optional[Dict] = None) -> Optional[Union[Dict, List]]:
         """Make POST request to API endpoint"""
         url = f"{self.base_url}{endpoint}"
         logger.debug("Making POST request to: %s", url)
@@ -59,7 +60,8 @@ class HarnessAPIClient:
                 logger.error("Response Text: %s", e.response.text)
             return None
 
-    def put(self, endpoint: str, params: Optional[Dict] = None, json: Optional[Dict] = None) -> Optional[Union[Dict, List]]:
+    def put(self, endpoint: str, params: Optional[Dict] = None,
+            json: Optional[Dict] = None) -> Optional[Union[Dict, List]]:
         """Make PUT request to API endpoint"""
         url = f"{self.base_url}{endpoint}"
         logger.debug("Making PUT request to: %s", url)
