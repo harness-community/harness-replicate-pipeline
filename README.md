@@ -248,6 +248,7 @@ Use ↑↓ to navigate, Space to toggle [X], Enter to confirm.
   },
   "options": {
     "migrate_input_sets": true,
+    "migrate_triggers": false,
     "skip_existing": true
   },
   "selected_pipelines": [
@@ -281,6 +282,7 @@ Interactive mode will prompt for org/project/pipeline selections.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `migrate_input_sets` | boolean | true | Migrate input sets with pipelines |
+| `migrate_triggers` | boolean | false | Migrate triggers with pipelines |
 | `skip_existing` | boolean | true | Skip pipelines that already exist |
 
 ---
@@ -307,13 +309,20 @@ Interactive mode will prompt for org/project/pipeline selections.
 - Auto-migrated when pipeline dependencies are detected
 - Auto-updated: `orgIdentifier` and `projectIdentifier`
 
+**Triggers:**
+- Webhook triggers
+- Scheduled triggers
+- All trigger types supported by Harness
+- Migrated after input sets (triggers may reference input sets)
+- Auto-updated: `orgIdentifier` and `projectIdentifier`
+- **Note:** Disabled by default, use `--migrate-triggers` to enable
+
 ### ❌ NOT Migrated
 
 The following are **not** migrated:
 
 - Connectors
 - Secrets
-- Triggers
 - Services, Environments, Infrastructure
 - File Store files
 - Execution history
