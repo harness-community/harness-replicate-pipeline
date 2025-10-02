@@ -65,6 +65,8 @@ def _apply_env_overrides(config: Dict[str, Any]) -> Dict[str, Any]:
         "HARNESS_SKIP_TRIGGERS": ("options", "skip_triggers"),
         "HARNESS_SKIP_TEMPLATES": ("options", "skip_templates"),
         "HARNESS_UPDATE_EXISTING": ("options", "update_existing"),
+        "HARNESS_OUTPUT_JSON": ("options", "output_json"),
+        "HARNESS_OUTPUT_COLOR": ("options", "output_color"),
         "HARNESS_DRY_RUN": ("", "dry_run"),
         "HARNESS_DEBUG": ("", "debug"),
         "HARNESS_NON_INTERACTIVE": ("", "non_interactive"),
@@ -148,6 +150,11 @@ def build_complete_config(config_file: str, args, interactive_config: Dict[str, 
     config["non_interactive"] = args.non_interactive or config.get("non_interactive", False)
     config["debug"] = args.debug or config.get("debug", False)
     
+    # Add output format flags (with defaults)
+    options = config.setdefault("options", {})
+    config["output_json"] = options.get("output_json", False)
+    config["output_color"] = options.get("output_color", False)
+    
     # Add metadata about configuration sources for debugging
     config["_config_metadata"] = {
         "config_file": config_file,
@@ -203,6 +210,14 @@ def _apply_cli_overrides(config: Dict[str, Any], args) -> Dict[str, Any]:
     # Handle update_existing (CLI args override config)
     if hasattr(args, 'update_existing') and args.update_existing:
         options["update_existing"] = True
+
+    # Handle output options (CLI args override config)
+    if hasattr(args, 'output_json') and args.output_json:
+        options["output_json"] = True
+    
+    # Handle output color flag
+    if hasattr(args, 'output_color') and args.output_color:
+        options["output_color"] = True
 
     # Handle pipeline specifications from CLI
     if args.pipelines:

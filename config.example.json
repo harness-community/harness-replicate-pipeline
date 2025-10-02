@@ -17,6 +17,8 @@
     "skip_input_sets": false,
     "skip_triggers": false,
     "skip_templates": false,
-    "update_existing": false
+    "update_existing": false,
+    "output_json": false,
+    "output_color": false
   }
 }
