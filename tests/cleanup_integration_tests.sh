@@ -60,10 +60,10 @@ resource_exists() {
     fi
 }
 
-# Get list of test organizations (those starting with "test-migration-org")
+# Get list of test organizations (those starting with "test_migration_org")
 echo "📋 Finding test organizations..."
 orgs_response=$(api_call "GET" "/v1/orgs")
-test_orgs=$(echo "$orgs_response" | grep -o '"identifier":"test-migration-org[^"]*"' | sed 's/"identifier":"//g' | sed 's/"//g')
+test_orgs=$(echo "$orgs_response" | grep -o '"identifier":"test_migration_org[^"]*"' | sed 's/"identifier":"//g' | sed 's/"//g')
 
 if [ -z "$test_orgs" ]; then
     echo "✅ No test organizations found - nothing to clean up"

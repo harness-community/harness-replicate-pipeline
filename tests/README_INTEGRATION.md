@@ -11,14 +11,27 @@ This guide explains how to run integration tests for the Harness Migration Toolk
 
 ## 🚀 Quick Start
 
-### 1. Set Environment Variables
+### 1. Configure Destination
 
+#### Option A: Environment Variables (Recommended for CI/CD)
 ```bash
 export INTEGRATION_TEST_DEST_URL="https://your-harness-url.com"
 export INTEGRATION_TEST_DEST_API_KEY="your-api-key"
 ```
 
-**Note**: Integration tests use environment variables for destination configuration instead of the standard `config.json` file to avoid conflicts with existing configurations.
+#### Option B: config.json File (Recommended for Local Development)
+Ensure your `config.json` file contains valid destination configuration:
+
+```json
+{
+  "destination": {
+    "base_url": "https://your-harness-url.com",
+    "api_key": "your-api-key"
+  }
+}
+```
+
+**Priority**: Environment variables take precedence over `config.json` if both are present.
 
 ### 2. Run Integration Tests
 
