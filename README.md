@@ -258,9 +258,10 @@ Use ↑↓ to navigate, Space to toggle [X], Enter to confirm.
     "project": "dest_project_id"
   },
   "options": {
-    "replicate_input_sets": true,
-    "replicate_triggers": true,
-    "skip_existing": true
+    "skip_input_sets": false,
+    "skip_triggers": false,
+    "skip_templates": false,
+    "update_existing": false
   },
   "selected_pipelines": [
     {"identifier": "pipeline1", "name": "API Deploy"},
@@ -292,9 +293,36 @@ Interactive mode will prompt for org/project/pipeline selections.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `replicate_input_sets` | boolean | true | Migrate input sets with pipelines |
-| `replicate_triggers` | boolean | true | Migrate triggers with pipelines |
-| `skip_existing` | boolean | true | Skip pipelines that already exist |
+| `skip_input_sets` | boolean | false | Skip replicating input sets with pipelines |
+| `skip_triggers` | boolean | false | Skip replicating triggers with pipelines |
+| `skip_templates` | boolean | false | Skip replicating missing templates automatically |
+| `update_existing` | boolean | false | Update/overwrite existing pipelines instead of skipping |
+
+**Configuration Examples:**
+
+```json
+{
+  "options": {
+    // Default behavior (replicate everything, skip existing)
+    "skip_input_sets": false,
+    "skip_triggers": false, 
+    "skip_templates": false,
+    "update_existing": false
+  }
+}
+```
+
+```json
+{
+  "options": {
+    // Skip input sets and templates, update existing pipelines
+    "skip_input_sets": true,
+    "skip_triggers": false,
+    "skip_templates": true, 
+    "update_existing": true
+  }
+}
+```
 
 ---
 
@@ -377,19 +405,46 @@ Options:
 
 **Replication Options:**
 ```bash
-  --replicate-input-sets     Migrate input sets with pipelines (default: true)
-  --no-replicate-input-sets  Skip migrating input sets
-  --skip-existing          Skip pipelines that already exist (default: true)
-  --no-skip-existing       Update/overwrite existing pipelines
+  --skip-input-sets        Skip replicating input sets (default: replicate)
+  --skip-triggers          Skip replicating triggers (default: replicate)
+  --skip-templates         Skip replicating templates (default: replicate)
+  --update-existing        Update existing pipelines (default: skip existing)
 ```
 
 ### Configuration Priority
 
-**Priority Order:** `Config file > CLI arguments > Interactive prompts`
+**Priority Order:** `Config file > Environment Variables > CLI arguments > Interactive prompts`
 
-- **Config file values** are loaded first
-- **CLI arguments** override config file values
-- **Interactive prompts** only appear for missing values
+### Environment Variables
+
+You can override any boolean option using environment variables:
+
+| Environment Variable | Config Option | Description |
+|---------------------|---------------|-------------|
+| `HARNESS_SKIP_INPUT_SETS` | `skip_input_sets` | Skip replicating input sets |
+| `HARNESS_SKIP_TRIGGERS` | `skip_triggers` | Skip replicating triggers |
+| `HARNESS_SKIP_TEMPLATES` | `skip_templates` | Skip replicating templates |
+| `HARNESS_UPDATE_EXISTING` | `update_existing` | Update existing pipelines |
+
+**Environment Variable Values:** `true`, `1`, `yes`, `on` = true; anything else = false
+
+**Examples:**
+```bash
+# Environment variables override config file
+export HARNESS_SKIP_INPUT_SETS=true
+export HARNESS_UPDATE_EXISTING=true
+python main.py
+
+# CLI arguments override both config file and environment variables
+HARNESS_SKIP_TRIGGERS=true python main.py --skip-input-sets --non-interactive
+```
+
+**Priority Explanation:**
+- **Config file values** are loaded first (step 1) - may not exist, uses as defaults
+- **Environment variables** override config file values (step 2) - may not exist, overrides existing values
+- **CLI arguments** override both config file and environment variables (step 3) - may not exist, overrides existing values
+- **Interactive prompts** are the final override for any missing values (step 4) - overrides existing values
+- **Final validation** checks for required variables and declares what must be set (step 5)
 
 ### Common Usage
 
@@ -411,7 +466,7 @@ python main.py --source-org my_org --dest-org target_org
 python main.py --non-interactive
 
 # Override config with CLI args
-python main.py --non-interactive --no-replicate-input-sets
+python main.py --non-interactive --skip-input-sets
 
 # Custom config file
 python main.py --config prod.json --non-interactive
@@ -436,8 +491,8 @@ python main.py \
   --source-api-key sat.xxxxx.xxxxx.xxxxx \
   --dest-url https://app3.harness.io \
   --dest-api-key sat.yyyyy.yyyyy.yyyyy \
-  --no-replicate-input-sets \
-  --no-skip-existing
+  --skip-input-sets \
+  --update-existing
 ```
 
 **Debug and Testing:**
@@ -776,8 +831,8 @@ python main.py --debug
 # Override specific values
 python main.py --source-org my_org --dest-org target_org
 
-# Override migration options
-python main.py --no-replicate-input-sets --no-skip-existing
+# Override replication options
+python main.py --skip-input-sets --update-existing
 
 # Full CLI configuration
 python main.py \
