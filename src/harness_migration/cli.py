@@ -52,7 +52,8 @@ def non_interactive_mode(config_file: str) -> Dict[str, Any]:
     for field_path in required_fields:
         if len(field_path) == 2:
             section, key = field_path
-            if not config.get(section, {}).get(key):
+            section_data = config.get(section, {})
+            if isinstance(section_data, dict) and not section_data.get(key):
                 logger.error("Missing required field: %s.%s", section, key)
                 sys.exit(1)
         else:
