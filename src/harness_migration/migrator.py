@@ -160,7 +160,10 @@ class HarnessMigrator:
             return False
 
         # Extract template YAML
-        template_yaml = template_data.get("template", {}).get("yaml", "")
+        if isinstance(template_data, dict):
+            template_yaml = template_data.get("template", {}).get("yaml", "")
+        else:
+            template_yaml = ""
         if not template_yaml:
             logger.error("  Template missing YAML content: %s", template_ref)
             self.migration_stats["templates"]["failed"] += 1
@@ -201,7 +204,7 @@ class HarnessMigrator:
             self.migration_stats["templates"]["failed"] += 1
 
         time.sleep(0.3)
-        return result
+        return bool(result)
 
     def run_migration(self) -> bool:
         """Run the complete migration process"""
@@ -343,7 +346,7 @@ class HarnessMigrator:
                 continue
 
             # Update org/project identifiers in input set YAML
-            if "input_set_yaml" in input_set_details:
+            if isinstance(input_set_details, dict) and "input_set_yaml" in input_set_details:
                 yaml_content = input_set_details["input_set_yaml"]
                 updated_yaml = self._update_yaml_identifiers(
                     yaml_content, wrapper_key="inputSet")
@@ -357,9 +360,10 @@ class HarnessMigrator:
                 logger.info("  [DRY RUN] Would create input set '%s'", input_set_name)
                 result = True
             else:
+                json_data = input_set_details if isinstance(input_set_details, dict) else None
                 result = self.dest_client.post(
                     create_endpoint, params={"pipeline": pipeline_id},
-                    json=input_set_details)
+                    json=json_data)
 
             if result:
                 logger.info("  ✓ Input set '%s' migrated successfully", input_set_name)
@@ -404,7 +408,7 @@ class HarnessMigrator:
                 continue
 
             # Extract and handle template dependencies
-            yaml_content = pipeline_details.get("pipeline_yaml", "")
+            yaml_content = pipeline_details.get("pipeline_yaml", "") if isinstance(pipeline_details, dict) else ""
             if yaml_content:
                 templates = self.extract_template_refs(yaml_content)
                 if templates:
@@ -425,7 +429,11 @@ class HarnessMigrator:
                         continue
 
             # Create or update the pipeline
-            result = self._create_or_update_pipeline(pipeline_id, pipeline_name, pipeline_details)
+            if isinstance(pipeline_details, dict):
+                result = self._create_or_update_pipeline(pipeline_id, pipeline_name, pipeline_details)
+            else:
+                logger.error("Pipeline details is not a dictionary: %s", pipeline_id)
+                result = None
 
             if result is True:
                 self.migration_stats["pipelines"]["success"] += 1
