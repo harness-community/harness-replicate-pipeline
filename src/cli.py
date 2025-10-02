@@ -8,7 +8,7 @@ import logging
 import sys
 
 from .argument_parser import ArgumentParser
-from .config import apply_cli_overrides
+from .config import build_complete_config
 from .logging_utils import setup_logging
 from .mode_handlers import ModeHandlers
 from .replicator import HarnessReplicator
@@ -17,44 +17,37 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    """Main entry point following priority order:
-    1. Always try to load config file (may not exist), use as defaults
-    2. Always try to load environment variables (may not exist), overrides existing values
-    3. Always load CLI arguments (may not exist), overrides existing values
-    4. Interactive mode follow dialog rules, overrides existing values
-    5. Ultimately if any required variables are missing error and declare the variables that must be set
+    """Main entry point that creates a single source of truth configuration.
+    
+    Merges all input sources in priority order:
+    1. Config file (may not exist) - uses as defaults
+    2. Environment variables (may not exist) - overrides existing values
+    3. CLI arguments (may not exist) - overrides existing values
+    4. Interactive mode selections (may not exist) - overrides existing values
+    
+    Creates single source of truth that all subsequent operations use.
     """
-    # Parse command line arguments (step 3 - always loaded)
+    # Parse command line arguments
     parser = ArgumentParser.create_parser()
     args = parser.parse_args()
 
-    # Setup logging with debug level if requested (check env vars first, then CLI args)
-    debug_mode = args.debug
-    if not debug_mode:
-        # Check environment variable if CLI arg not set
-        import os
-        debug_mode = os.getenv("HARNESS_DEBUG", "").lower() in ('true', '1', 'yes', 'on')
-    setup_logging(debug=debug_mode)
-
-    # Steps 1-2: Load config file and environment variables (handled in mode handlers)
+    # Build complete configuration from all input sources
     if args.non_interactive:
-        config = ModeHandlers.non_interactive_mode(args.config)
+        # Non-interactive: config file + env vars + CLI args
+        config = build_complete_config(args.config, args)
     else:
-        # Step 4: Interactive mode with dialog overrides
-        config = ModeHandlers.interactive_mode(args.config)
+        # Interactive: config file + env vars + CLI args + interactive selections
+        interactive_selections = ModeHandlers.get_interactive_selections(args.config, args)
+        config = build_complete_config(args.config, args, interactive_selections)
 
-    # Step 3: Always apply CLI argument overrides
-    config = apply_cli_overrides(config, args)
+    # Setup logging using the single source of truth
+    setup_logging(debug=config.get("debug", False))
 
-    # Add runtime flags to config (CLI args override env vars)
-    config["dry_run"] = args.dry_run or config.get("dry_run", False)
-    config["non_interactive"] = args.non_interactive or config.get("non_interactive", False)
-
-    # Step 5: Final validation - check for required variables and declare what must be set
-    if not _validate_final_config(config, args.non_interactive, bool(args.pipelines)):
+    # Final validation - check for required variables and declare what must be set
+    if not _validate_final_config(config, config.get("non_interactive", False), bool(config.get("pipelines"))):
         sys.exit(1)
 
-    # Run replication
+    # Run replication using the single source of truth
     replicator = HarnessReplicator(config)
     success = replicator.run_replication()
 

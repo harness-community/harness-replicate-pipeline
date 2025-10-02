@@ -98,24 +98,72 @@ def _apply_env_overrides(config: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def save_config(config: Dict[str, Any], config_file: str) -> bool:
-    """Save current configuration state in memory to JSON file"""
+    """Save current configuration state (single source of truth) to JSON file.
+    
+    This saves the complete merged configuration that represents the current
+    state in memory. The saved config will include all merged values from
+    all input sources (config file, env vars, CLI args, interactive selections).
+    """
     try:
+        # Create a clean copy without metadata for saving
+        clean_config = {k: v for k, v in config.items() if not k.startswith("_")}
+        
         with open(config_file, "w", encoding="utf-8") as f:
-            json.dump(config, f, indent=2, ensure_ascii=False)
+            json.dump(clean_config, f, indent=2, ensure_ascii=False)
+        
+        logger.info("Configuration saved to %s (from single source of truth)", config_file)
         return True
     except (OSError, TypeError) as e:
         logger.error("Failed to save config file '%s': %s", config_file, e)
         return False
 
 
-def apply_cli_overrides(config: Dict[str, Any], args) -> Dict[str, Any]:
-    """Apply CLI argument overrides to configuration (step 3 in priority order)
+def build_complete_config(config_file: str, args, interactive_config: Dict[str, Any] = None) -> Dict[str, Any]:
+    """Build complete configuration from all input sources in priority order.
     
-    Priority: Config file > Environment Variables > CLI arguments > Interactive prompts
-    This function applies CLI arguments to config that already has env vars applied.
+    This creates the single source of truth by merging all inputs:
+    1. Config file (may not exist) - uses as defaults
+    2. Environment variables (may not exist) - overrides existing values
+    3. CLI arguments (may not exist) - overrides existing values
+    4. Interactive selections (may not exist) - overrides existing values
+    
+    Returns the final merged configuration that serves as the single source of truth.
+    All subsequent operations should read from this merged configuration only.
     """
-    # Create a copy to avoid modifying the original
-    updated_config = config.copy()
+    logger.info("Building complete configuration from all input sources")
+    
+    # Step 1: Load config file and apply environment variables
+    config = load_config(config_file)
+    
+    # Step 2: Apply CLI argument overrides
+    config = _apply_cli_overrides(config, args)
+    
+    # Step 3: Apply interactive selections if provided
+    if interactive_config:
+        config = _merge_interactive_config(config, interactive_config)
+        logger.info("Applied interactive selections to configuration")
+    
+    # Step 4: Add runtime flags (already processed through env vars and CLI)
+    config["dry_run"] = args.dry_run or config.get("dry_run", False)
+    config["non_interactive"] = args.non_interactive or config.get("non_interactive", False)
+    config["debug"] = args.debug or config.get("debug", False)
+    
+    # Add metadata about configuration sources for debugging
+    config["_config_metadata"] = {
+        "config_file": config_file,
+        "has_interactive_selections": interactive_config is not None,
+        "created_at": "build_complete_config"
+    }
+    
+    logger.info("Configuration built successfully - single source of truth created")
+    return config
+
+
+def _apply_cli_overrides(config: Dict[str, Any], args) -> Dict[str, Any]:
+    """Apply CLI argument overrides to configuration (step 3 in priority order)"""
+    # Create a deep copy to avoid modifying the original
+    import copy
+    updated_config = copy.deepcopy(config)
 
     # Source configuration overrides
     if args.source_url:
@@ -167,3 +215,24 @@ def apply_cli_overrides(config: Dict[str, Any], args) -> Dict[str, Any]:
         updated_config["pipelines"] = cli_pipelines
 
     return updated_config
+
+
+def _merge_interactive_config(config: Dict[str, Any], interactive_config: Dict[str, Any]) -> Dict[str, Any]:
+    """Merge interactive selections into configuration (step 4 in priority order)"""
+    import copy
+    merged_config = copy.deepcopy(config)
+    
+    # Interactive selections override all previous values
+    for section, values in interactive_config.items():
+        if isinstance(values, dict):
+            merged_config.setdefault(section, {}).update(values)
+        else:
+            merged_config[section] = values
+    
+    return merged_config
+
+
+# Legacy function for backward compatibility - will be removed
+def apply_cli_overrides(config: Dict[str, Any], args) -> Dict[str, Any]:
+    """Legacy function - use build_complete_config instead"""
+    return _apply_cli_overrides(config, args)
