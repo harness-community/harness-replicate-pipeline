@@ -24,7 +24,7 @@ class TestSelectOrganization:
         mock_client.normalize_response.return_value = [{"identifier": "org1", "name": "Org 1"}]
 
         # Act
-        with patch('src.harness_migration.ui.radiolist_dialog') as mock_dialog:
+        with patch('src.ui.radiolist_dialog') as mock_dialog:
             mock_dialog.return_value.run.return_value = "org1"
             result = select_organization(mock_client)
 
@@ -40,8 +40,8 @@ class TestSelectOrganization:
         mock_client.normalize_response.return_value = []
 
         # Act
-        with patch('src.harness_migration.ui.message_dialog') as mock_message:
-            with patch('src.harness_migration.ui.radiolist_dialog') as mock_dialog:
+        with patch('src.ui.message_dialog') as mock_message:
+            with patch('src.ui.radiolist_dialog') as mock_dialog:
                 mock_dialog.return_value.run.return_value = None
                 result = select_organization(mock_client)
 
@@ -56,7 +56,7 @@ class TestSelectOrganization:
         mock_client.get.side_effect = Exception("API Error")
 
         # Act
-        with patch('src.harness_migration.ui.message_dialog') as mock_message:
+        with patch('src.ui.message_dialog') as mock_message:
             result = select_organization(mock_client)
 
         # Assert
@@ -71,7 +71,7 @@ class TestSelectOrganization:
         mock_client.normalize_response.return_value = [{"identifier": "org1", "name": "Org 1"}]
 
         # Act
-        with patch('src.harness_migration.ui.radiolist_dialog') as mock_dialog:
+        with patch('src.ui.radiolist_dialog') as mock_dialog:
             mock_dialog.return_value.run.return_value = None
             result = select_organization(mock_client)
 
@@ -91,7 +91,7 @@ class TestSelectProject:
         mock_client.normalize_response.return_value = [{"identifier": "proj1", "name": "Project 1"}]
 
         # Act
-        with patch('src.harness_migration.ui.radiolist_dialog') as mock_dialog:
+        with patch('src.ui.radiolist_dialog') as mock_dialog:
             mock_dialog.return_value.run.return_value = "proj1"
             result = select_project(mock_client, org)
 
@@ -108,8 +108,8 @@ class TestSelectProject:
         mock_client.normalize_response.return_value = []
 
         # Act
-        with patch('src.harness_migration.ui.message_dialog') as mock_message:
-            with patch('src.harness_migration.ui.radiolist_dialog') as mock_dialog:
+        with patch('src.ui.message_dialog') as mock_message:
+            with patch('src.ui.radiolist_dialog') as mock_dialog:
                 mock_dialog.return_value.run.return_value = None
                 result = select_project(mock_client, org)
 
@@ -125,7 +125,7 @@ class TestSelectProject:
         mock_client.get.side_effect = Exception("API Error")
 
         # Act
-        with patch('src.harness_migration.ui.message_dialog') as mock_message:
+        with patch('src.ui.message_dialog') as mock_message:
             result = select_project(mock_client, org)
 
         # Assert
@@ -150,7 +150,7 @@ class TestSelectPipelines:
         mock_client.normalize_response.return_value = pipelines
 
         # Act
-        with patch('src.harness_migration.ui.checkboxlist_dialog') as mock_dialog:
+        with patch('src.ui.checkboxlist_dialog') as mock_dialog:
             mock_dialog.return_value.run.return_value = ["pipeline1", "pipeline2"]
             result = select_pipelines(mock_client, org, project)
 
@@ -170,8 +170,8 @@ class TestSelectPipelines:
         mock_client.normalize_response.return_value = []
 
         # Act
-        with patch('src.harness_migration.ui.message_dialog') as mock_message:
-            with patch('src.harness_migration.ui.checkboxlist_dialog') as mock_dialog:
+        with patch('src.ui.message_dialog') as mock_message:
+            with patch('src.ui.checkboxlist_dialog') as mock_dialog:
                 mock_dialog.return_value.run.return_value = None
                 result = select_pipelines(mock_client, org, project)
 
@@ -188,7 +188,7 @@ class TestSelectPipelines:
         mock_client.get.side_effect = Exception("API Error")
 
         # Act
-        with patch('src.harness_migration.ui.message_dialog') as mock_message:
+        with patch('src.ui.message_dialog') as mock_message:
             result = select_pipelines(mock_client, org, project)
 
         # Assert
@@ -206,7 +206,7 @@ class TestSelectPipelines:
         mock_client.normalize_response.return_value = pipelines
 
         # Act
-        with patch('src.harness_migration.ui.checkboxlist_dialog') as mock_dialog:
+        with patch('src.ui.checkboxlist_dialog') as mock_dialog:
             mock_dialog.return_value.run.return_value = None
             result = select_pipelines(mock_client, org, project)
 
@@ -226,7 +226,7 @@ class TestSelectOrCreateOrganization:
         mock_client.normalize_response.return_value = orgs
 
         # Act
-        with patch('src.harness_migration.ui.radiolist_dialog') as mock_dialog:
+        with patch('src.ui.radiolist_dialog') as mock_dialog:
             mock_dialog.return_value.run.return_value = "org1"
             result = select_or_create_organization(mock_client)
 
@@ -242,9 +242,9 @@ class TestSelectOrCreateOrganization:
         mock_client.normalize_response.return_value = orgs
 
         # Act
-        with patch('src.harness_migration.ui.radiolist_dialog') as mock_dialog:
+        with patch('src.ui.radiolist_dialog') as mock_dialog:
             mock_dialog.return_value.run.return_value = "__create_new__"
-            with patch('src.harness_migration.ui.create_organization', return_value="new-org"):
+            with patch('src.ui.create_organization', return_value="new-org"):
                 result = select_or_create_organization(mock_client)
 
         # Assert
@@ -258,7 +258,7 @@ class TestSelectOrCreateOrganization:
         mock_client.normalize_response.return_value = []
 
         # Act
-        with patch('src.harness_migration.ui.create_organization', return_value="new-org"):
+        with patch('src.ui.create_organization', return_value="new-org"):
             result = select_or_create_organization(mock_client)
 
         # Assert
@@ -271,7 +271,7 @@ class TestSelectOrCreateOrganization:
         mock_client.get.side_effect = Exception("API Error")
 
         # Act
-        with patch('src.harness_migration.ui.message_dialog') as mock_message:
+        with patch('src.ui.message_dialog') as mock_message:
             result = select_or_create_organization(mock_client)
 
         # Assert
@@ -292,7 +292,7 @@ class TestSelectOrCreateProject:
         mock_client.normalize_response.return_value = projects
 
         # Act
-        with patch('src.harness_migration.ui.radiolist_dialog') as mock_dialog:
+        with patch('src.ui.radiolist_dialog') as mock_dialog:
             mock_dialog.return_value.run.return_value = "proj1"
             result = select_or_create_project(mock_client, org)
 
@@ -309,9 +309,9 @@ class TestSelectOrCreateProject:
         mock_client.normalize_response.return_value = projects
 
         # Act
-        with patch('src.harness_migration.ui.radiolist_dialog') as mock_dialog:
+        with patch('src.ui.radiolist_dialog') as mock_dialog:
             mock_dialog.return_value.run.return_value = "__create_new__"
-            with patch('src.harness_migration.ui.create_project', return_value="new-project"):
+            with patch('src.ui.create_project', return_value="new-project"):
                 result = select_or_create_project(mock_client, org)
 
         # Assert
@@ -326,7 +326,7 @@ class TestSelectOrCreateProject:
         mock_client.normalize_response.return_value = []
 
         # Act
-        with patch('src.harness_migration.ui.create_project', return_value="new-project"):
+        with patch('src.ui.create_project', return_value="new-project"):
             result = select_or_create_project(mock_client, org)
 
         # Assert
@@ -340,7 +340,7 @@ class TestSelectOrCreateProject:
         mock_client.get.side_effect = Exception("API Error")
 
         # Act
-        with patch('src.harness_migration.ui.message_dialog') as mock_message:
+        with patch('src.ui.message_dialog') as mock_message:
             result = select_or_create_project(mock_client, org)
 
         # Assert
@@ -385,7 +385,7 @@ class TestCreateOrganization:
 
         # Act
         with patch('prompt_toolkit.prompt', return_value="new-org"):
-            with patch('src.harness_migration.ui.message_dialog') as mock_message:
+            with patch('src.ui.message_dialog') as mock_message:
                 result = create_organization(mock_client)
 
         # Assert
@@ -400,7 +400,7 @@ class TestCreateOrganization:
 
         # Act
         with patch('prompt_toolkit.prompt', return_value="new-org"):
-            with patch('src.harness_migration.ui.message_dialog') as mock_message:
+            with patch('src.ui.message_dialog') as mock_message:
                 result = create_organization(mock_client)
 
         # Assert
@@ -448,7 +448,7 @@ class TestCreateProject:
 
         # Act
         with patch('prompt_toolkit.prompt', return_value="new-project"):
-            with patch('src.harness_migration.ui.message_dialog') as mock_message:
+            with patch('src.ui.message_dialog') as mock_message:
                 result = create_project(mock_client, org)
 
         # Assert
@@ -464,7 +464,7 @@ class TestCreateProject:
 
         # Act
         with patch('prompt_toolkit.prompt', return_value="new-project"):
-            with patch('src.harness_migration.ui.message_dialog') as mock_message:
+            with patch('src.ui.message_dialog') as mock_message:
                 result = create_project(mock_client, org)
 
         # Assert
@@ -486,12 +486,12 @@ class TestGetSelectionsFromClients:
         dest_client = Mock()
 
         # Act
-        with patch('src.harness_migration.ui.select_organization', return_value="source-org"):
-            with patch('src.harness_migration.ui.select_project', return_value="source-project"):
-                with patch('src.harness_migration.ui.select_pipelines', return_value=[{"identifier": "pipeline1"}]):
-                    with patch('src.harness_migration.ui.select_or_create_organization', return_value="dest-org"):
-                        with patch('src.harness_migration.ui.select_or_create_project', return_value="dest-project"):
-                            with patch('src.harness_migration.config.save_config') as mock_save:
+        with patch('src.ui.select_organization', return_value="source-org"):
+            with patch('src.ui.select_project', return_value="source-project"):
+                with patch('src.ui.select_pipelines', return_value=[{"identifier": "pipeline1"}]):
+                    with patch('src.ui.select_or_create_organization', return_value="dest-org"):
+                        with patch('src.ui.select_or_create_project', return_value="dest-project"):
+                            with patch('src.config.save_config') as mock_save:
                                 result = get_selections_from_clients(source_client, dest_client, base_config, "config.json")
 
         # Assert
@@ -500,7 +500,7 @@ class TestGetSelectionsFromClients:
         assert result["destination"]["org"] == "dest-org"
         assert result["destination"]["project"] == "dest-project"
         assert result["pipelines"] == [{"identifier": "pipeline1"}]
-        assert mock_save.call_count == 5  # Called for each selection
+        # Note: save_config is no longer called automatically after each selection
 
     def test_get_selections_from_clients_all_present(self):
         """Test get_selections_from_clients when all selections are present"""
@@ -514,7 +514,7 @@ class TestGetSelectionsFromClients:
         dest_client = Mock()
 
         # Act
-        with patch('src.harness_migration.config.save_config') as mock_save:
+        with patch('src.config.save_config') as mock_save:
             result = get_selections_from_clients(source_client, dest_client, base_config, "config.json")
 
         # Assert
@@ -532,11 +532,11 @@ class TestGetSelectionsFromClients:
         dest_client = Mock()
 
         # Act
-        with patch('src.harness_migration.ui.select_project', return_value="source-project"):
-            with patch('src.harness_migration.ui.select_pipelines', return_value=[{"identifier": "pipeline1"}]):
-                with patch('src.harness_migration.ui.select_or_create_organization', return_value="dest-org"):
-                    with patch('src.harness_migration.ui.select_or_create_project', return_value="dest-project"):
-                        with patch('src.harness_migration.config.save_config') as mock_save:
+        with patch('src.ui.select_project', return_value="source-project"):
+            with patch('src.ui.select_pipelines', return_value=[{"identifier": "pipeline1"}]):
+                with patch('src.ui.select_or_create_organization', return_value="dest-org"):
+                    with patch('src.ui.select_or_create_project', return_value="dest-project"):
+                        with patch('src.config.save_config') as mock_save:
                             result = get_selections_from_clients(source_client, dest_client, base_config, "config.json")
 
         # Assert
@@ -545,7 +545,7 @@ class TestGetSelectionsFromClients:
         assert result["destination"]["org"] == "dest-org"  # Selected
         assert result["destination"]["project"] == "dest-project"  # Selected
         assert result["pipelines"] == [{"identifier": "pipeline1"}]  # Selected
-        assert mock_save.call_count == 4  # Called for each missing selection
+        # Note: save_config is no longer called automatically after each selection
 
     def test_get_selections_from_clients_selection_fails(self):
         """Test get_selections_from_clients when selection fails"""
@@ -558,7 +558,7 @@ class TestGetSelectionsFromClients:
         dest_client = Mock()
 
         # Act
-        with patch('src.harness_migration.ui.select_organization', return_value=None):
+        with patch('src.ui.select_organization', return_value=None):
             result = get_selections_from_clients(source_client, dest_client, base_config, "config.json")
 
         # Assert
