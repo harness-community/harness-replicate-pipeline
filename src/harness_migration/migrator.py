@@ -160,7 +160,7 @@ class HarnessMigrator:
             return False
 
         # Extract template YAML
-        template_yaml = template_data.get("template_yaml", "")
+        template_yaml = template_data.get("template", {}).get("yaml", "")
         if not template_yaml:
             logger.error("  Template missing YAML content: %s", template_ref)
             self.migration_stats["templates"]["failed"] += 1
