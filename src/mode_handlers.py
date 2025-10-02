@@ -20,14 +20,12 @@ class ModeHandlers:
 
     @staticmethod
     def non_interactive_mode(config_file: str) -> Dict[str, Any]:
-        """Non-interactive mode - use all values from config file"""
+        """Non-interactive mode - use all values from config file and environment variables"""
         logger.info("Running in non-interactive mode")
 
+        # Always try to load config (may not exist), then env vars, then CLI args
         config = load_config(config_file)
-        if not config:
-            logger.error("Failed to load configuration from %s", config_file)
-            sys.exit(1)
-
+        
         return config
 
     @staticmethod
@@ -35,13 +33,12 @@ class ModeHandlers:
         """Interactive mode - show dialogs for all selections, allowing review/modification of existing values"""
         logger.info("Running in interactive mode")
 
+        # Always try to load config (may not exist), then env vars, then CLI args
         config = load_config(config_file)
-        if not config:
-            logger.error("Failed to load configuration from %s", config_file)
-            sys.exit(1)
 
-        # Validate API credentials first
+        # Validate API credentials are present (required for interactive mode)
         if not ConfigValidator.validate_api_credentials(config):
+            logger.error("API credentials are required for interactive mode")
             sys.exit(1)
 
         # Initialize API clients
