@@ -40,6 +40,7 @@ class HarnessMigrator:
             "pipelines": {"success": 0, "failed": 0, "skipped": 0},
             "input_sets": {"success": 0, "failed": 0, "skipped": 0},
             "templates": {"success": 0, "failed": 0, "skipped": 0},
+            "triggers": {"success": 0, "failed": 0, "skipped": 0},
         }
 
     def _get_option(self, key: str, default: Any = None) -> Any:
@@ -376,6 +377,93 @@ class HarnessMigrator:
 
         return True
 
+    def migrate_triggers(self, pipeline_id: str) -> bool:
+        """Migrate triggers for a specific pipeline"""
+        logger.info("  Checking for triggers for pipeline: %s", pipeline_id)
+
+        # List triggers using the discovered API endpoint
+        endpoint = "/pipeline/api/triggers"
+        params = {
+            "orgIdentifier": self.source_org,
+            "projectIdentifier": self.source_project,
+            "targetIdentifier": pipeline_id
+        }
+        triggers_response = self.source_client.get(endpoint, params=params)
+        
+        if not triggers_response:
+            logger.info("  No triggers found for pipeline: %s", pipeline_id)
+            return True
+
+        # Extract triggers from the response structure
+        triggers_data = triggers_response.get("data", {})
+        if isinstance(triggers_data, dict):
+            triggers_list = triggers_data.get("triggers", [])
+        else:
+            triggers_list = []
+
+        triggers = HarnessAPIClient.normalize_response(triggers_list)
+
+        if not triggers:
+            logger.info("  No triggers found for pipeline: %s", pipeline_id)
+            return True
+
+        logger.info("  Migrating %d triggers...", len(triggers))
+
+        for trigger in triggers:
+            trigger_id = trigger.get("identifier")
+            trigger_name = trigger.get("name", trigger_id)
+            logger.info("  Migrating trigger: %s", trigger_name)
+
+            # Get full trigger details
+            get_endpoint = "/pipeline/api/triggers"
+            get_params = {
+                "orgIdentifier": self.source_org,
+                "projectIdentifier": self.source_project,
+                "targetIdentifier": pipeline_id,
+                "triggerIdentifier": trigger_id
+            }
+            trigger_details = self.source_client.get(get_endpoint, params=get_params)
+
+            if not trigger_details:
+                logger.error("  Failed to get details for trigger: %s", trigger_id)
+                self.migration_stats["triggers"]["failed"] += 1
+                continue
+
+            # Update org/project identifiers in trigger YAML
+            if isinstance(trigger_details, dict) and "trigger_yaml" in trigger_details:
+                yaml_content = trigger_details["trigger_yaml"]
+                updated_yaml = self._update_yaml_identifiers(
+                    yaml_content, wrapper_key="trigger")
+                trigger_details["trigger_yaml"] = updated_yaml
+
+            # Create trigger in destination
+            create_endpoint = "/pipeline/api/triggers"
+            create_params = {
+                "orgIdentifier": self.dest_org,
+                "projectIdentifier": self.dest_project,
+                "targetIdentifier": pipeline_id
+            }
+
+            if self._is_dry_run():
+                logger.info("  [DRY RUN] Would create trigger '%s'", trigger_name)
+                result = True
+            else:
+                json_data = trigger_details if isinstance(trigger_details, dict) else None
+                result = self.dest_client.post(
+                    create_endpoint, params=create_params,
+                    json=json_data)
+
+            if result:
+                logger.info("  ✓ Trigger '%s' migrated successfully", trigger_name)
+                self.migration_stats["triggers"]["success"] += 1
+            else:
+                logger.error("  ✗ Failed to migrate trigger: %s", trigger_name)
+                self.migration_stats["triggers"]["failed"] += 1
+
+            time.sleep(0.3)
+
+        return True
+
     def migrate_pipelines(self) -> bool:
         """Migrate all selected pipelines"""
         pipelines = self.config.get("pipelines", [])
@@ -441,6 +529,10 @@ class HarnessMigrator:
                 # Migrate associated input sets
                 if self._get_option("migrate_input_sets", True):
                     self.migrate_input_sets(pipeline_id)
+                    
+                # Migrate associated triggers (after input sets since triggers may reference them)
+                if self._get_option("migrate_triggers", False):
+                    self.migrate_triggers(pipeline_id)
             elif result is False:
                 # Skipped - already exists
                 self.migration_stats["pipelines"]["skipped"] += 1
