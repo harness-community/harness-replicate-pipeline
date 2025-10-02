@@ -7,7 +7,7 @@ Tests configuration management with proper mocking and AAA methodology.
 import json
 from unittest.mock import Mock, patch, mock_open
 
-from src.harness_migration.config import load_config, save_config, apply_cli_overrides
+from src.config import load_config, save_config, apply_cli_overrides
 
 
 class TestLoadConfig:

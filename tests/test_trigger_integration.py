@@ -24,7 +24,7 @@ import time
 
 import pytest
 
-from src.harness_migration.api_client import HarnessAPIClient
+from src.api_client import HarnessAPIClient
 
 
 def _get_destination_config():

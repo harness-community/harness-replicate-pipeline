@@ -5,10 +5,10 @@ Test that we can import the main module
 
 def test_can_import_src_package():
     """Test that we can import the new src package structure."""
-    from src.harness_migration import HarnessAPIClient, HarnessMigrator, main
+    from src import HarnessAPIClient, HarnessReplicator, main
 
     assert HarnessAPIClient is not None
-    assert HarnessMigrator is not None
+    assert HarnessReplicator is not None
     assert main is not None
 
 

@@ -1,17 +1,17 @@
 """
-Unit Tests for Trigger Migration
+Unit Tests for Trigger Replication
 
-These tests focus on the behavior of trigger migration functionality,
+These tests focus on the behavior of trigger replication functionality,
 using mocks to isolate the logic from external dependencies.
 """
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 
-from src.harness_migration.migrator import HarnessMigrator
+from src.trigger_handler import TriggerHandler
 
 
-class TestTriggerMigration:
-    """Unit tests for trigger migration functionality"""
+class TestTriggerReplication:
+    """Unit tests for trigger replication functionality"""
 
     def setup_method(self):
         """Setup test fixtures before each test method"""

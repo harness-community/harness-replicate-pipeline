@@ -6,7 +6,7 @@ Tests interactive UI functionality with proper mocking and AAA methodology.
 
 from unittest.mock import Mock, patch
 
-from src.harness_migration.ui import (
+from src.ui import (
     select_organization, select_project, select_pipelines,
     select_or_create_organization, select_or_create_project,
     create_organization, create_project, get_selections_from_clients

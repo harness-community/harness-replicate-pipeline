@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 
 from requests.exceptions import RequestException, HTTPError
 
-from src.harness_migration.api_client import HarnessAPIClient
+from src.api_client import HarnessAPIClient
 
 
 class TestHarnessAPIClient:

@@ -1,18 +1,18 @@
 """
-Comprehensive unit tests for HarnessMigrator
+Comprehensive unit tests for HarnessReplicator
 
-Tests migration functionality with proper mocking and AAA methodology.
+Tests replication functionality with proper mocking and AAA methodology.
 """
 
 from unittest.mock import patch
 import yaml
 
-from src.harness_migration.api_client import HarnessAPIClient
-from src.harness_migration.migrator import HarnessMigrator
+from src.api_client import HarnessAPIClient
+from src.replicator import HarnessReplicator
 
 
-class TestHarnessMigrator:
-    """Test suite for HarnessMigrator"""
+class TestHarnessReplicator:
+    """Test suite for HarnessReplicator"""
 
     def setup_method(self):
         """Setup test fixtures before each test method"""
@@ -37,7 +37,7 @@ class TestHarnessMigrator:
                 {"identifier": "pipeline1", "name": "Pipeline 1"}
             ]
         }
-        self.migrator = HarnessMigrator(self.config)
+        self.replicator = HarnessReplicator(self.config)
 
     def test_init_sets_correct_attributes(self):
         """Test that initialization sets correct attributes"""

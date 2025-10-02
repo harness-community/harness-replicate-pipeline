@@ -28,8 +28,8 @@ import time
 
 import pytest
 
-from src.harness_migration.api_client import HarnessAPIClient
-from src.harness_migration.migrator import HarnessMigrator
+from src.api_client import HarnessAPIClient
+from src.replicator import HarnessReplicator
 
 
 def _get_destination_config():
@@ -220,7 +220,7 @@ template:
     def test_migrator_verify_prerequisites(self):
         """Test migrator's prerequisite verification (org/project creation)"""
         # Arrange
-        migrator = HarnessMigrator(self.config)
+        migrator = HarnessReplicator(self.config)
 
         # Act
         result = migrator.verify_prerequisites()
@@ -243,7 +243,7 @@ template:
     def test_migrator_verify_prerequisites_only(self):
         """Test migrator's prerequisite verification (org/project creation)"""
         # Arrange
-        migrator = HarnessMigrator(self.config)
+        migrator = HarnessReplicator(self.config)
 
         # Act
         result = migrator.verify_prerequisites()
@@ -292,7 +292,7 @@ pipeline:
         test_config = self.config.copy()
         test_config["dry_run"] = True  # Enable dry run for safety
 
-        migrator = HarnessMigrator(test_config)
+        migrator = HarnessReplicator(test_config)
         migrator.source_client = MockSourceClient()
 
         # Act - This should work in dry run mode
