@@ -1,0 +1,13 @@
+[tool.pyright]
+reportAttributeAccessIssue = "none"
+reportReturnType = "none"
+reportCallIssue = "none"
+reportArgumentType = "none"
+typeCheckingMode = "basic"
+
+[tool.basedpyright]
+reportAttributeAccessIssue = "none"
+reportReturnType = "none"
+reportCallIssue = "none"
+reportArgumentType = "none"
+typeCheckingMode = "basic"
