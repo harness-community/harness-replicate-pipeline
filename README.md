@@ -248,7 +248,7 @@ Use ↑↓ to navigate, Space to toggle [X], Enter to confirm.
   },
   "options": {
     "migrate_input_sets": true,
-    "migrate_triggers": false,
+    "migrate_triggers": true,
     "skip_existing": true
   },
   "selected_pipelines": [
@@ -282,7 +282,7 @@ Interactive mode will prompt for org/project/pipeline selections.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `migrate_input_sets` | boolean | true | Migrate input sets with pipelines |
-| `migrate_triggers` | boolean | false | Migrate triggers with pipelines |
+| `migrate_triggers` | boolean | true | Migrate triggers with pipelines |
 | `skip_existing` | boolean | true | Skip pipelines that already exist |
 
 ---

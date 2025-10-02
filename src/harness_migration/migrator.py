@@ -599,7 +599,7 @@ class HarnessMigrator:
                     self.migrate_input_sets(pipeline_id)
                     
                 # Migrate associated triggers (after input sets since triggers may reference them)
-                if self._get_option("migrate_triggers", False):
+                if self._get_option("migrate_triggers", True):
                     self.migrate_triggers(pipeline_id)
 
         return True

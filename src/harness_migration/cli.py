@@ -126,7 +126,7 @@ Usage Examples:
     python -m harness_migration --source-org my_org --dest-org target_org
 
     # Override migration options
-    python -m harness_migration --migrate-triggers --no-migrate-input-sets --no-skip-existing
+    python -m harness_migration --no-migrate-triggers --no-migrate-input-sets --no-skip-existing
 
     # Full CLI configuration (minimal config file needed)
     python -m harness_migration \\
@@ -155,7 +155,7 @@ Configuration File Format (supports JSONC with comments):
   },
   "options": {
     "migrate_input_sets": true,
-    "migrate_triggers": false,
+    "migrate_triggers": true,
     "skip_existing": true
   }
 }
@@ -241,14 +241,14 @@ Configuration File Format (supports JSONC with comments):
         help="Skip migrating input sets",
     )
     parser.add_argument(
-        "--migrate-triggers",
-        action="store_true",
-        help="Migrate triggers with pipelines (default: false)",
-    )
-    parser.add_argument(
         "--no-migrate-triggers",
         action="store_true",
-        help="Skip migrating triggers",
+        help="Skip migrating triggers (default: migrate triggers)",
+    )
+    parser.add_argument(
+        "--migrate-triggers",
+        action="store_true",
+        help="Force migrate triggers (default behavior, kept for compatibility)",
     )
     parser.add_argument(
         "--skip-existing",

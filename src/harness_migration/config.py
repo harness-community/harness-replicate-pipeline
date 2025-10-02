@@ -75,10 +75,11 @@ def apply_cli_overrides(config: Dict[str, Any], args) -> Dict[str, Any]:
         options["migrate_input_sets"] = False
 
     # Handle migrate_triggers (CLI args override config)
-    if args.migrate_triggers:
-        options["migrate_triggers"] = True
-    elif args.no_migrate_triggers:
+    # Default is True, only set to False if explicitly disabled
+    if args.no_migrate_triggers:
         options["migrate_triggers"] = False
+    elif args.migrate_triggers:
+        options["migrate_triggers"] = True
 
     # Handle skip_existing (CLI args override config)
     if args.skip_existing:
