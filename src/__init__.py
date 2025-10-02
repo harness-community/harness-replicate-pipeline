@@ -12,4 +12,24 @@ from .api_client import HarnessAPIClient
 from .replicator import HarnessReplicator
 from .cli import main
 
-__all__ = ["HarnessAPIClient", "HarnessReplicator", "main"]
+# Import handlers for external use if needed
+from .base_replicator import BaseReplicator
+from .prerequisite_handler import PrerequisiteHandler
+from .template_handler import TemplateHandler
+from .pipeline_handler import PipelineHandler
+from .inputset_handler import InputSetHandler
+from .trigger_handler import TriggerHandler
+from .yaml_utils import YAMLUtils
+
+__all__ = [
+    "HarnessAPIClient",
+    "HarnessReplicator",
+    "main",
+    "BaseReplicator",
+    "PrerequisiteHandler",
+    "TemplateHandler",
+    "PipelineHandler",
+    "InputSetHandler",
+    "TriggerHandler",
+    "YAMLUtils"
+]

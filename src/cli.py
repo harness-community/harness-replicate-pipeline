@@ -13,7 +13,7 @@ from typing import Any, Dict
 from .api_client import HarnessAPIClient
 from .config import apply_cli_overrides, load_config
 from .replicator import HarnessReplicator
-from .ui import get_selections_from_clients
+# UI imports are done dynamically where needed
 
 logger = logging.getLogger(__name__)
 
@@ -54,22 +54,18 @@ def validate_non_interactive_config(config: Dict[str, Any], has_cli_pipelines: b
         ("destination", "org"), ("destination", "project")
     ]
     
+    # Check all required fields
+    for section, key in required_fields:
+        section_data = config.get(section, {})
+        if isinstance(section_data, dict) and not section_data.get(key):
+            logger.error("Missing required field: %s.%s", section, key)
+            return False
+    
     # Only require pipelines in config if not provided via CLI
     if not has_cli_pipelines:
-        required_fields.append(("pipelines", None))
-
-    for field_path in required_fields:
-        if len(field_path) == 2:
-            section, key = field_path
-            section_data = config.get(section, {})
-            if isinstance(section_data, dict) and not section_data.get(key):
-                logger.error("Missing required field: %s.%s", section, key)
-                return False
-        else:
-            section = field_path[0]
-            if not config.get(section):
-                logger.error("Missing required section: %s", section)
-                return False
+        if not config.get("pipelines"):
+            logger.error("Missing required section: pipelines")
+            return False
 
     return True
 
