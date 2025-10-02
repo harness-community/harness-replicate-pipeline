@@ -60,6 +60,122 @@ resource_exists() {
     fi
 }
 
+# Function to extract identifiers from API response
+extract_identifiers() {
+    local response="$1"
+    echo "$response" | grep -o '"identifier":"[^"]*"' | sed 's/"identifier":"//g' | sed 's/"//g'
+}
+
+# Function to delete resources with logging
+delete_resource() {
+    local resource_type="$1"
+    local resource_name="$2"
+    local endpoint="$3"
+    local indent="$4"
+    
+    echo "${indent}🗑️  Deleting $resource_type: $resource_name"
+    api_call "DELETE" "$endpoint" > /dev/null
+}
+
+# Function to list and process resources
+process_resources() {
+    local resource_type="$1"
+    local endpoint="$2"
+    local indent="$3"
+    local callback="$4"
+    
+    local response=$(api_call "GET" "$endpoint")
+    local resources=$(extract_identifiers "$response")
+    
+    if [ -n "$resources" ]; then
+        echo "${indent}📋 Found $resource_type:"
+        echo "$resources" | while read -r resource; do
+            if [ -n "$resource" ]; then
+                echo "${indent}   - $resource"
+                if [ -n "$callback" ]; then
+                    $callback "$resource"
+                fi
+            fi
+        done
+    fi
+}
+
+# Function to clean up input sets for a pipeline
+cleanup_input_sets() {
+    local org="$1"
+    local project="$2"
+    local pipeline="$3"
+    
+    process_resources "input sets" "/v1/orgs/$org/projects/$project/input-sets?pipeline=$pipeline" "               " \
+        "delete_resource 'input set' \$resource '/v1/orgs/$org/projects/$project/input-sets/\$resource' '                  '"
+}
+
+# Function to clean up pipelines in a project
+cleanup_pipelines() {
+    local org="$1"
+    local project="$2"
+    
+    local pipelines_response=$(api_call "GET" "/v1/orgs/$org/projects/$project/pipelines")
+    local pipelines=$(extract_identifiers "$pipelines_response")
+    
+    if [ -n "$pipelines" ]; then
+        echo "         🔧 Found pipelines:"
+        echo "$pipelines" | while read -r pipeline; do
+            if [ -n "$pipeline" ]; then
+                echo "            - $pipeline"
+                cleanup_input_sets "$org" "$project" "$pipeline"
+                delete_resource "pipeline" "$pipeline" "/v1/orgs/$org/projects/$project/pipelines/$pipeline" "               "
+            fi
+        done
+    fi
+}
+
+# Function to clean up templates in a project
+cleanup_templates() {
+    local org="$1"
+    local project="$2"
+    
+    process_resources "templates" "/v1/orgs/$org/projects/$project/templates" "         " \
+        "delete_resource 'template' \$resource '/v1/orgs/$org/projects/$project/templates/\$resource' '               '"
+}
+
+# Function to clean up projects in an organization
+cleanup_projects() {
+    local org="$1"
+    
+    local projects_response=$(api_call "GET" "/v1/orgs/$org/projects")
+    local projects=$(extract_identifiers "$projects_response")
+    
+    if [ -n "$projects" ]; then
+        echo "   📂 Found projects:"
+        echo "$projects" | while read -r project; do
+            if [ -n "$project" ]; then
+                echo "      - $project"
+                cleanup_pipelines "$org" "$project"
+                cleanup_templates "$org" "$project"
+                delete_resource "project" "$project" "/v1/orgs/$org/projects/$project" "      "
+            fi
+        done
+    fi
+}
+
+# Function to clean up a single organization
+cleanup_organization() {
+    local org="$1"
+    
+    echo ""
+    echo "🗑️  Cleaning up organization: $org"
+    
+    if resource_exists "/v1/orgs/$org"; then
+        echo "   📁 Organization exists, proceeding with cleanup..."
+        cleanup_projects "$org"
+        delete_resource "organization" "$org" "/v1/orgs/$org" "   "
+        echo "   ✅ Organization $org deleted successfully"
+    else
+        echo "   ℹ️  Organization $org doesn't exist or already deleted"
+    fi
+}
+
 # Get list of test organizations (those starting with "test_migration_org")
 echo "📋 Finding test organizations..."
 orgs_response=$(api_call "GET" "/v1/orgs")
@@ -78,84 +194,7 @@ done
 # Clean up each test organization
 echo "$test_orgs" | while read -r org; do
     if [ -n "$org" ]; then
-        echo ""
-        echo "🗑️  Cleaning up organization: $org"
-        
-        # Check if organization exists
-        if resource_exists "/v1/orgs/$org"; then
-            echo "   📁 Organization exists, proceeding with cleanup..."
-            
-            # Get projects in this organization
-            projects_response=$(api_call "GET" "/v1/orgs/$org/projects")
-            projects=$(echo "$projects_response" | grep -o '"identifier":"[^"]*"' | sed 's/"identifier":"//g' | sed 's/"//g')
-            
-            if [ -n "$projects" ]; then
-                echo "   📂 Found projects:"
-                echo "$projects" | while read -r project; do
-                    if [ -n "$project" ]; then
-                        echo "      - $project"
-                        
-                        # Get pipelines in this project
-                        pipelines_response=$(api_call "GET" "/v1/orgs/$org/projects/$project/pipelines")
-                        pipelines=$(echo "$pipelines_response" | grep -o '"identifier":"[^"]*"' | sed 's/"identifier":"//g' | sed 's/"//g')
-                        
-                        if [ -n "$pipelines" ]; then
-                            echo "         🔧 Found pipelines:"
-                            echo "$pipelines" | while read -r pipeline; do
-                                if [ -n "$pipeline" ]; then
-                                    echo "            - $pipeline"
-                                    
-                                    # Delete input sets for this pipeline
-                                    input_sets_response=$(api_call "GET" "/v1/orgs/$org/projects/$project/input-sets?pipeline=$pipeline")
-                                    input_sets=$(echo "$input_sets_response" | grep -o '"identifier":"[^"]*"' | sed 's/"identifier":"//g' | sed 's/"//g')
-                                    
-                                    if [ -n "$input_sets" ]; then
-                                        echo "               📝 Deleting input sets:"
-                                        echo "$input_sets" | while read -r input_set; do
-                                            if [ -n "$input_set" ]; then
-                                                echo "                  - $input_set"
-                                                api_call "DELETE" "/v1/orgs/$org/projects/$project/input-sets/$input_set" > /dev/null
-                                            fi
-                                        done
-                                    fi
-                                    
-                                    # Delete pipeline
-                                    echo "               🗑️  Deleting pipeline: $pipeline"
-                                    api_call "DELETE" "/v1/orgs/$org/projects/$project/pipelines/$pipeline" > /dev/null
-                                fi
-                            done
-                        fi
-                        
-                        # Get templates in this project
-                        templates_response=$(api_call "GET" "/v1/orgs/$org/projects/$project/templates")
-                        templates=$(echo "$templates_response" | grep -o '"identifier":"[^"]*"' | sed 's/"identifier":"//g' | sed 's/"//g')
-                        
-                        if [ -n "$templates" ]; then
-                            echo "         📋 Found templates:"
-                            echo "$templates" | while read -r template; do
-                                if [ -n "$template" ]; then
-                                    echo "            - $template"
-                                    # Delete template
-                                    echo "               🗑️  Deleting template: $template"
-                                    api_call "DELETE" "/v1/orgs/$org/projects/$project/templates/$template" > /dev/null
-                                fi
-                            done
-                        fi
-                        
-                        # Delete project
-                        echo "      🗑️  Deleting project: $project"
-                        api_call "DELETE" "/v1/orgs/$org/projects/$project" > /dev/null
-                    fi
-                done
-            fi
-            
-            # Delete organization
-            echo "   🗑️  Deleting organization: $org"
-            api_call "DELETE" "/v1/orgs/$org" > /dev/null
-            echo "   ✅ Organization $org deleted successfully"
-        else
-            echo "   ℹ️  Organization $org doesn't exist or already deleted"
-        fi
+        cleanup_organization "$org"
     fi
 done
 
