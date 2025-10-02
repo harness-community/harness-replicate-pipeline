@@ -19,7 +19,8 @@ def load_config(config_file: str) -> Dict[str, Any]:
             content = f.read()
 
         # Remove JSONC comments (// and /* */)
-        content = re.sub(r'//.*$', '', content, flags=re.MULTILINE)
+        # Simple approach: only remove // comments that start at beginning of line or after whitespace
+        content = re.sub(r'^\s*//.*$', '', content, flags=re.MULTILINE)
         content = re.sub(r'/\*.*?\*/', '', content, flags=re.DOTALL)
 
         return json.loads(content)
