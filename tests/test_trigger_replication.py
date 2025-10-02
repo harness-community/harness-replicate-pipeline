@@ -98,11 +98,12 @@ class TestTriggerReplication:
         self.mock_source_client.get.side_effect = [
             # List triggers response
             {"data": {"content": [trigger_data]}},
-            # Check existing trigger (doesn't exist)
-            None,
             # Get trigger details
             {"data": {"yaml": "trigger:\n  name: Test Trigger\n  orgIdentifier: source_org\n  projectIdentifier: source_project"}}
         ]
+        
+        # Mock destination client - trigger doesn't exist
+        self.mock_dest_client.get.return_value = None
         
         # Mock successful creation
         mock_response = Mock()
@@ -152,8 +153,8 @@ class TestTriggerReplication:
             "name": "Test Trigger"
         }
         
-        # Override config to not skip existing
-        self.config["options"]["skip_existing"] = False
+        # Override config to update existing
+        self.config["options"]["update_existing"] = True
         handler = TriggerHandler(
             self.config, 
             self.mock_source_client, 
@@ -197,11 +198,12 @@ class TestTriggerReplication:
         self.mock_source_client.get.side_effect = [
             # List triggers response
             {"data": {"content": [trigger_data]}},
-            # Check existing trigger (doesn't exist)
-            None,
             # Get trigger details
             {"data": {"yaml": "trigger:\n  name: Test Trigger"}}
         ]
+        
+        # Mock destination client - trigger doesn't exist
+        self.mock_dest_client.get.return_value = None
         
         # Mock failed creation
         mock_response = Mock()
@@ -239,11 +241,12 @@ class TestTriggerReplication:
         self.mock_source_client.get.side_effect = [
             # List triggers response
             {"data": {"content": [trigger_data]}},
-            # Check existing trigger (doesn't exist)
-            None,
             # Get trigger details
             {"data": {"yaml": "trigger:\n  name: Test Trigger"}}
         ]
+        
+        # Mock destination client - trigger doesn't exist
+        self.mock_dest_client.get.return_value = None
         
         # Act
         result = handler.replicate_triggers(pipeline_id)
@@ -267,11 +270,12 @@ class TestTriggerReplication:
         self.mock_source_client.get.side_effect = [
             # List triggers response
             {"data": {"content": [trigger_data]}},
-            # Check existing trigger (doesn't exist)
-            None,
             # Get trigger details (fails)
             None
         ]
+        
+        # Mock destination client - trigger doesn't exist
+        self.mock_dest_client.get.return_value = None
         
         # Act
         result = self.handler.replicate_triggers(pipeline_id)
