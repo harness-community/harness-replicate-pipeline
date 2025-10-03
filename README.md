@@ -41,7 +41,7 @@ cp config.example.json config.json
 
 The toolkit has been refactored into a modular structure for better maintainability:
 
-```
+```text
 harness-replicate-pipeline/
 ├── src/                          # Core package (modular architecture)
 │   ├── __init__.py              # Package exports
@@ -117,7 +117,7 @@ pytest tests/integration/test_integration.py::TestIntegrationMigration::test_cre
 
 ### Test Structure
 
-```
+```text
 tests/
 ├── integration/                 # Integration tests (require Harness API)
 │   ├── README.md               # Integration test documentation
@@ -272,6 +272,78 @@ python main.py --non-interactive --dry-run --debug
 
 ---
 
+## Replication Process Flow
+
+Here's how the tool works internally when you run a migration:
+
+```mermaid
+flowchart TD
+    %% Color scheme for light/dark compatibility
+    classDef start fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px,color:#000
+    classDef process fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000
+    classDef decision fill:#fff3e0,stroke:#f57c00,stroke-width:2px,color:#000
+    classDef success fill:#e8f5e8,stroke:#388e3c,stroke-width:2px,color:#000
+    classDef error fill:#ffebee,stroke:#d32f2f,stroke-width:2px,color:#000
+
+    START([Start Migration]):::start
+    
+    %% Configuration Phase
+    CONFIG{Mode?}:::decision
+    INTERACTIVE[Interactive Mode<br/>• Show dialogs<br/>• Select resources<br/>• Confirm choices]:::process
+    NONINTERACTIVE[Non-Interactive Mode<br/>• Load config.json<br/>• Validate settings<br/>• Use saved selections]:::process
+    
+    %% Validation Phase
+    VALIDATE[Validate Configuration<br/>• Check API keys<br/>• Test connectivity<br/>• Verify permissions]:::process
+    VALFAIL{Valid?}:::decision
+    
+    %% Prerequisites Phase
+    PREREQ[Check Prerequisites<br/>• Source org/project exist?<br/>• Dest org/project exist?<br/>• Create if needed]:::process
+    PREREQFAIL{Success?}:::decision
+    
+    %% Main Replication Phase
+    PIPELINES[For Each Pipeline:]:::process
+    TEMPLATES[Check Template Dependencies<br/>• Extract template refs from YAML<br/>• Auto-replicate missing templates]:::process
+    CREATEPIPE[Create/Update Pipeline<br/>• Update org/project identifiers<br/>• Handle existing pipelines]:::process
+    INPUTSETS[Replicate Input Sets<br/>• Find all input sets for pipeline<br/>• Create in destination]:::process
+    TRIGGERS[Replicate Triggers<br/>• Find all triggers for pipeline<br/>• Create in destination<br/>• May reference input sets]:::process
+    
+    %% Completion
+    SUMMARY[Generate Summary<br/>• Success/failed/skipped counts<br/>• Detailed report]:::process
+    SUCCESS([Migration Complete]):::success
+    FAIL([Migration Failed]):::error
+    
+    %% Flow connections
+    START --> CONFIG
+    CONFIG -->|Interactive| INTERACTIVE
+    CONFIG -->|Non-Interactive| NONINTERACTIVE
+    INTERACTIVE --> VALIDATE
+    NONINTERACTIVE --> VALIDATE
+    
+    VALIDATE --> VALFAIL
+    VALFAIL -->|No| FAIL
+    VALFAIL -->|Yes| PREREQ
+    
+    PREREQ --> PREREQFAIL
+    PREREQFAIL -->|No| FAIL
+    PREREQFAIL -->|Yes| PIPELINES
+    
+    PIPELINES --> TEMPLATES
+    TEMPLATES --> CREATEPIPE
+    CREATEPIPE --> INPUTSETS
+    INPUTSETS --> TRIGGERS
+    TRIGGERS -->|More Pipelines?| PIPELINES
+    TRIGGERS -->|Done| SUMMARY
+    SUMMARY --> SUCCESS
+```
+
+**🔍 Key Decision Points:**
+- **Dry Run**: All operations are simulated, no actual changes made
+- **Skip Options**: `--skip-input-sets`, `--skip-triggers`, `--skip-templates`
+- **Update Existing**: `--update-existing` vs skip existing resources
+- **Template Dependencies**: Auto-replicated unless `--skip-templates` is used
+
+---
+
 ## Navigation Guide
 
 ### Keyboard Controls
@@ -287,7 +359,7 @@ python main.py --non-interactive --dry-run --debug
 ### Dialog Examples
 
 **Single Selection (Organizations/Projects):**
-```
+```text
 ┌─ SELECT ORGANIZATION ──────────┐
 │   DevOps Team                  │
 │ ● Production Org               │
@@ -298,10 +370,10 @@ python main.py --non-interactive --dry-run --debug
 ```
 
 **Multi-Selection (Pipelines):**
-```
+```text
 ┌─ SELECT PIPELINES ─────────────┐
 │ [X] API Deploy Pipeline        │
-│ [ ] Database Replication         │
+│ [ ] Database Replication       │
 │ [X] Frontend Build             │
 │                                │
 │ [OK] [Cancel]                  │
@@ -399,6 +471,77 @@ Interactive mode will prompt for org/project/pipeline selections.
 
 ---
 
+## Resource Dependencies & Replication Order
+
+Understanding the dependency relationships between Harness resources is crucial for successful migration:
+
+```mermaid
+graph TD
+    %% Define color scheme that works in both light and dark modes
+    classDef template fill:#e1f5fe,stroke:#0277bd,stroke-width:2px,color:#000
+    classDef pipeline fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#000
+    classDef child fill:#e8f5e8,stroke:#388e3c,stroke-width:2px,color:#000
+    classDef org fill:#fff3e0,stroke:#f57c00,stroke-width:2px,color:#000
+
+    %% Organizational structure
+    ORG[Organization]:::org
+    PROJ[Project]:::org
+    
+    %% Templates (independent)
+    T1[Step Template]:::template
+    T2[Stage Template]:::template
+    T3[Pipeline Template]:::template
+    
+    %% Pipelines (depend on templates)
+    P1[Pipeline A]:::pipeline
+    P2[Pipeline B]:::pipeline
+    
+    %% Child resources (depend on pipelines)
+    IS1[Input Set A1]:::child
+    IS2[Input Set A2]:::child
+    IS3[Input Set B1]:::child
+    TR1[Trigger A1]:::child
+    TR2[Trigger B1]:::child
+    TR3[Trigger B2]:::child
+
+    %% Dependencies
+    ORG --> PROJ
+    PROJ --> T1
+    PROJ --> T2
+    PROJ --> T3
+    PROJ --> P1
+    PROJ --> P2
+    
+    T1 -.->|referenced by| P1
+    T2 -.->|referenced by| P1
+    T3 -.->|referenced by| P2
+    
+    P1 --> IS1
+    P1 --> IS2
+    P1 --> TR1
+    P2 --> IS3
+    P2 --> TR2
+    P2 --> TR3
+    
+    TR1 -.->|may reference| IS1
+    TR2 -.->|may reference| IS3
+```
+
+**🔄 Replication Order:**
+1. **Prerequisites**: Organization & Project (auto-created if needed)
+2. **Templates**: Auto-replicated when referenced by pipelines
+3. **Pipelines**: Main resources being migrated
+4. **Input Sets**: Replicated after their parent pipeline
+5. **Triggers**: Replicated last (may reference input sets)
+
+**💡 Key Points:**
+- Templates are **dependencies** of pipelines - they must exist before pipeline creation
+- Input Sets and Triggers are **children** of pipelines - they're replicated after the pipeline
+- Triggers may reference Input Sets, so Input Sets are replicated first
+- The tool handles all dependencies automatically in the correct order
+
+---
+
 ## What Gets Migrated
 
 ### ✅ Migrated
@@ -411,6 +554,7 @@ Interactive mode will prompt for org/project/pipeline selections.
 **Input Sets:**
 - All input sets for replicated pipelines
 - Overlay input sets
+- **Child Resource**: Replicated after parent pipeline creation
 - Maintains relationship with parent pipelines
 - Auto-updated: `orgIdentifier` and `projectIdentifier`
 
@@ -418,6 +562,7 @@ Interactive mode will prompt for org/project/pipeline selections.
 - Pipeline templates referenced by pipelines
 - Step group templates
 - Stage templates
+- **Dependency**: Must exist before pipeline creation
 - Auto-replicated when pipeline dependencies are detected
 - Auto-updated: `orgIdentifier` and `projectIdentifier`
 
@@ -425,7 +570,8 @@ Interactive mode will prompt for org/project/pipeline selections.
 - Webhook triggers
 - Scheduled triggers
 - All trigger types supported by Harness
-- Migrated after input sets (triggers may reference input sets)
+- **Child Resource**: Replicated after parent pipeline and input sets
+- May reference input sets, so replicated last in the dependency chain
 - Auto-updated: `orgIdentifier` and `projectIdentifier`
 - **Note:** Enabled by default, use `--skip-triggers` to disable
 
@@ -751,13 +897,100 @@ TEMPLATES:
 
 ---
 
+## Configuration Decision Guide
+
+Not sure which options to use? This decision tree helps you choose the right configuration:
+
+```mermaid
+flowchart TD
+    %% Color scheme for light/dark compatibility
+    classDef question fill:#fff3e0,stroke:#f57c00,stroke-width:2px,color:#000
+    classDef action fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000
+    classDef result fill:#e8f5e8,stroke:#388e3c,stroke-width:2px,color:#000
+    classDef warning fill:#ffebee,stroke:#d32f2f,stroke-width:2px,color:#000
+
+    START{First time using<br/>the tool?}:::question
+    
+    %% First time path
+    FIRSTTIME[Use Interactive Mode<br/>python main.py --dry-run]:::action
+    TESTRUN{Dry run<br/>successful?}:::question
+    REALRUN[Remove --dry-run<br/>Run for real]:::action
+    SAVECONFIG[Save config for automation<br/>python main.py --save-config]:::action
+    
+    %% Experienced user path
+    AUTOMATION{Need automation<br/>or CI/CD?}:::question
+    NONINT[Use Non-Interactive Mode<br/>python main.py --non-interactive]:::action
+    
+    %% Resource selection
+    EXISTING{Destination has<br/>existing resources?}:::question
+    UPDATE[Use --update-existing<br/>to overwrite]:::action
+    SKIP[Default behavior<br/>skips existing]:::result
+    
+    %% Template handling
+    TEMPLATES{Pipelines use<br/>templates?}:::question
+    SKIPTEMP[Consider --skip-templates<br/>if templates exist in dest]:::action
+    AUTOTEMP[Default: auto-replicate<br/>missing templates]:::result
+    
+    %% Input sets and triggers
+    CHILDREN{Need input sets<br/>and triggers?}:::question
+    SKIPCHILDREN[Use --skip-input-sets<br/>and/or --skip-triggers]:::action
+    INCLUDECHILDREN[Default: replicate<br/>all child resources]:::result
+    
+    %% Error scenarios
+    ERRORS[Debug issues with<br/>--debug flag]:::warning
+    
+    %% Flow
+    START -->|Yes| FIRSTTIME
+    START -->|No| AUTOMATION
+    
+    FIRSTTIME --> TESTRUN
+    TESTRUN -->|Yes| REALRUN
+    TESTRUN -->|No| ERRORS
+    REALRUN --> SAVECONFIG
+    
+    AUTOMATION -->|Yes| NONINT
+    AUTOMATION -->|No| FIRSTTIME
+    
+    SAVECONFIG --> EXISTING
+    NONINT --> EXISTING
+    
+    EXISTING -->|Yes| UPDATE
+    EXISTING -->|No| SKIP
+    
+    UPDATE --> TEMPLATES
+    SKIP --> TEMPLATES
+    
+    TEMPLATES -->|Yes| SKIPTEMP
+    TEMPLATES -->|No| AUTOTEMP
+    
+    SKIPTEMP --> CHILDREN
+    AUTOTEMP --> CHILDREN
+    
+    CHILDREN -->|No| SKIPCHILDREN
+    CHILDREN -->|Yes| INCLUDECHILDREN
+```
+
+**🎯 Quick Recommendations:**
+
+| Scenario | Recommended Command |
+|----------|-------------------|
+| **First time user** | `python main.py --dry-run` |
+| **Production migration** | `python main.py --save-config` then review |
+| **CI/CD automation** | `python main.py --non-interactive --output-json` |
+| **Update existing** | `python main.py --update-existing` |
+| **Templates exist in dest** | `python main.py --skip-templates` |
+| **Pipelines only** | `python main.py --skip-input-sets --skip-triggers` |
+| **Troubleshooting** | `python main.py --debug --dry-run` |
+
+---
+
 ## Troubleshooting
 
 ### Common Errors
 
 #### 401 Unauthorized
 
-```
+```text
 ERROR - API Error: 401 Client Error: Unauthorized
 ```
 
@@ -768,7 +1001,7 @@ ERROR - API Error: 401 Client Error: Unauthorized
 
 #### 403 Forbidden
 
-```
+```text
 ERROR - API Error: 403 Client Error: Forbidden
 ```
 
@@ -778,7 +1011,7 @@ ERROR - API Error: 403 Client Error: Forbidden
 
 #### 400 Bad Request (Pipeline Creation Failed)
 
-```
+```text
 ERROR - API Error: 400 Client Error: Bad Request
 ```
 
@@ -790,7 +1023,7 @@ ERROR - API Error: 400 Client Error: Bad Request
 
 #### 404 Not Found (Org/Project)
 
-```
+```text
 ERROR - Destination organization 'my_org' does not exist
 ```
 
@@ -919,7 +1152,7 @@ Yes! Set `skip_existing: true` and re-run. Already-replicated pipelines will be 
 ### How do I know if migration succeeded?
 
 Check the summary:
-```
+```text
 PIPELINES:
   Success: 5
   Failed: 0
