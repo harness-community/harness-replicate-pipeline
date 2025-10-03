@@ -130,16 +130,35 @@ tests/
 ### Running Tests in CI/CD
 
 ```yaml
-# Unit tests (always run)
-- name: Run unit tests
-  run: pytest tests/ --ignore=tests/integration --cov=src
-
-# Integration tests (optional, requires secrets)
-- name: Run integration tests
-  env:
-    INTEGRATION_TEST_DEST_URL: ${{ secrets.HARNESS_URL }}
-    INTEGRATION_TEST_DEST_API_KEY: ${{ secrets.HARNESS_API_KEY }}
-  run: pytest tests/integration/ -v
+# Harness Pipeline Example
+pipeline:
+  name: Test Migration Toolkit
+  stages:
+    - stage:
+        name: Unit Tests
+        type: CI
+        spec:
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: Run Unit Tests
+                  spec:
+                    command: pytest tests/ --ignore=tests/integration --cov=src
+    - stage:
+        name: Integration Tests
+        type: CI
+        spec:
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: Run Integration Tests
+                  spec:
+                    command: pytest tests/integration/ -v
+                    envVariables:
+                      INTEGRATION_TEST_DEST_URL: <+secrets.getValue("harness_url")>
+                      INTEGRATION_TEST_DEST_API_KEY: <+secrets.getValue("harness_api_key")>
 ```
 
 ---
@@ -1194,42 +1213,27 @@ Migrate specific pipelines only:
 
 ### CI/CD Integration
 
-```bash
-#!/bin/bash
-# migration.sh
-
-# Build config from environment variables
-cat > config.json <<EOF
-{
-  "source": {
-    "base_url": "${SOURCE_URL}",
-    "api_key": "${SOURCE_API_KEY}",
-    "org": "${SOURCE_ORG}",
-    "project": "${SOURCE_PROJECT}"
-  },
-  "destination": {
-    "base_url": "${DEST_URL}",
-    "api_key": "${DEST_API_KEY}",
-    "org": "${DEST_ORG}",
-    "project": "${DEST_PROJECT}"
-  },
-  "options": {
-    "replicate_input_sets": true,
-    "skip_existing": true
-  }
-}
-EOF
-
-# Run migration
-python main.py --non-interactive
-
-# Check result
-if [ $? -eq 0 ]; then
-  echo "✓ Replication successful"
-else
-  echo "✗ Replication failed"
-  exit 1
-fi
+```yaml
+# Harness Pipeline for Migration
+pipeline:
+  name: Pipeline Migration
+  stages:
+    - stage:
+        name: Migrate Pipelines
+        type: CI
+        spec:
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: Run Migration
+                  spec:
+                    command: |
+                      python main.py --non-interactive --output-json \
+                        --source-url <+secrets.getValue("source_url")> \
+                        --source-api-key <+secrets.getValue("source_api_key")> \
+                        --dest-url <+secrets.getValue("dest_url")> \
+                        --dest-api-key <+secrets.getValue("dest_api_key")>
 ```
 
 ### Skip vs Update Existing
