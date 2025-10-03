@@ -4,27 +4,52 @@ Integration Tests for Trigger Migration
 These tests verify the Harness API endpoints for triggers and test
 trigger migration functionality end-to-end.
 
-IMPORTANT: These tests are CREATE-ONLY and require manual cleanup.
-Resources created by these tests must be manually deleted.
+IMPORTANT: These tests create real resources but include automatic cleanup.
+Test resources are automatically cleaned up after test completion using the
+cleanup script.
 
 Setup Requirements:
 1. Set INTEGRATION_TEST_DEST_URL and INTEGRATION_TEST_DEST_API_KEY environment variables
 2. Or ensure config.json exists with destination configuration
 3. Ensure the destination environment is accessible
-4. Run tests with: pytest tests/test_trigger_integration.py -v -s
+4. Run tests with: pytest tests/integration/ -v -s
 
-Cleanup Commands (run after tests):
-# Delete test organization (this will delete all projects, pipelines, triggers, etc.)
-curl -X DELETE "https://your-dest-url/v1/orgs/test-migration-org-{timestamp}" \
-  -H "x-api-key: your-api-key"
+Automatic Cleanup: Test resources are automatically cleaned up after tests
+complete using tests/cleanup_integration_tests.sh script.
 """
 import json
 import os
+import subprocess
 import time
 
 import pytest
 
 from src.api_client import HarnessAPIClient
+
+
+def _run_cleanup_script():
+    """Run the integration test cleanup script"""
+    try:
+        script_path = os.path.join(os.path.dirname(__file__), "..", "cleanup_integration_tests.sh")
+        result = subprocess.run([script_path], capture_output=True, text=True, timeout=300)
+        
+        if result.returncode == 0:
+            print("\n✅ Automatic cleanup completed successfully")
+            if result.stdout:
+                print("Cleanup output:")
+                print(result.stdout)
+        else:
+            print(f"\n⚠️  Cleanup script failed with exit code {result.returncode}")
+            if result.stderr:
+                print("Error output:")
+                print(result.stderr)
+            if result.stdout:
+                print("Standard output:")
+                print(result.stdout)
+    except subprocess.TimeoutExpired:
+        print("\n⚠️  Cleanup script timed out after 5 minutes")
+    except Exception as e:
+        print(f"\n⚠️  Failed to run cleanup script: {e}")
 
 
 def _get_destination_config():
@@ -103,9 +128,8 @@ class TestTriggerIntegration:
         print(f"Test Pipeline: {self.test_pipeline}")
         print(f"Test Trigger: {self.test_trigger}")
         print(f"Destination URL: {self.dest_url}")
-        print("=== Manual Cleanup Required ===")
-        print("After tests, delete with:")
-        print(f'curl -X DELETE "{self.dest_url}/v1/orgs/{self.test_org}" -H "x-api-key: {self.dest_api_key}"')
+        print("=== Automatic Cleanup Enabled ===")
+        print("Test resources will be automatically cleaned up after test completion.")
         print("================================\n")
 
     def _create_test_org_and_project(self):
@@ -511,3 +535,8 @@ trigger:
 
             except Exception as e:
                 print(f"✗ ERROR: {structure['name']} - {str(e)}")
+
+    def teardown_method(self):
+        """Cleanup test resources after each test method"""
+        print("\n🧹 Running automatic cleanup...")
+        _run_cleanup_script()
