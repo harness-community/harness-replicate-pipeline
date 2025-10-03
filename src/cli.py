@@ -7,6 +7,7 @@ Main CLI orchestrator that coordinates all components.
 import logging
 import sys
 
+from .api_client import HarnessAuthenticationError
 from .argument_parser import ArgumentParser
 from .config import build_complete_config, load_config, save_config, should_save_config
 from .logging_utils import setup_logging
@@ -58,10 +59,30 @@ def main():
         sys.exit(1)
 
     # Run replication using the single source of truth
-    replicator = HarnessReplicator(config)
-    success = replicator.run_replication()
-
-    sys.exit(0 if success else 1)
+    try:
+        replicator = HarnessReplicator(config)
+        success = replicator.run_replication()
+        sys.exit(0 if success else 1)
+    except HarnessAuthenticationError as e:
+        logger.error("❌ Authentication Error")
+        logger.error("")
+        logger.error("Failed to authenticate with Harness API at: %s", e.base_url)
+        logger.error("")
+        logger.error("Possible causes:")
+        logger.error("  • Invalid or expired API key")
+        logger.error("  • API key lacks required permissions")
+        logger.error("  • Incorrect Harness instance URL")
+        logger.error("")
+        logger.error("Required API key permissions:")
+        logger.error("  • Organization: View, Create, Edit, Delete")
+        logger.error("  • Project: View, Create, Edit, Delete")
+        logger.error("  • Pipeline: View, Create, Edit, Delete")
+        logger.error("  • Template: View, Create, Edit, Delete")
+        logger.error("  • Input Set: View, Create, Edit, Delete")
+        logger.error("  • Trigger: View, Create, Edit, Delete")
+        logger.error("")
+        logger.error("Please verify your configuration and try again.")
+        sys.exit(1)
 
 
 def _handle_config_saving(config: dict, original_config: dict, args) -> None:

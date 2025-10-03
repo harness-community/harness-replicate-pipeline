@@ -12,6 +12,14 @@ import requests
 logger = logging.getLogger(__name__)
 
 
+class HarnessAuthenticationError(Exception):
+    """Raised when API authentication fails (401 Unauthorized)"""
+    def __init__(self, message: str, base_url: str):
+        self.message = message
+        self.base_url = base_url
+        super().__init__(message)
+
+
 class HarnessAPIClient:
     """Client for interacting with Harness API"""
 
@@ -25,6 +33,34 @@ class HarnessAPIClient:
             "Content-Type": "application/json",
         })
 
+    def _handle_auth_errors(self, e: requests.exceptions.RequestException) -> None:
+        """Check if the error is authentication-related and raise appropriate exception"""
+        if hasattr(e, 'response') and e.response is not None:
+            status_code = e.response.status_code
+            response_text = str(e.response.text).lower()
+            
+            if status_code == 401:
+                raise HarnessAuthenticationError(
+                    "Authentication failed. Please check your API key and ensure it has the required permissions.",
+                    self.base_url
+                )
+            elif status_code == 403:
+                raise HarnessAuthenticationError(
+                    "Access forbidden. Your API key lacks the required permissions for this operation.",
+                    self.base_url
+                )
+            elif status_code == 500:
+                # Harness often returns 500 for authentication issues instead of 401
+                # Check for authentication-related keywords or assume auth issue for certain endpoints
+                auth_keywords = ["unauthorized", "invalid", "authentication", "forbidden", "access denied"]
+                is_auth_endpoint = any(endpoint in e.request.url for endpoint in ["/v1/orgs", "/v1/projects", "/ng/api/"])
+                
+                if any(keyword in response_text for keyword in auth_keywords) or is_auth_endpoint:
+                    raise HarnessAuthenticationError(
+                        "Authentication failed (server error). Please verify your API key is valid and properly formatted.",
+                        self.base_url
+                    )
+
     def get(self, endpoint: str, params: Optional[Dict] = None) -> Optional[Union[Dict, List]]:
         """Make GET request to API endpoint"""
         url = f"{self.base_url}{endpoint}"
@@ -35,6 +71,7 @@ class HarnessAPIClient:
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
+            self._handle_auth_errors(e)
             logger.error("API Error: %s", e)
             if hasattr(e, 'response') and e.response is not None:
                 logger.error("Status: %s", e.response.status_code)
@@ -53,6 +90,7 @@ class HarnessAPIClient:
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
+            self._handle_auth_errors(e)
             logger.error("API Error: %s", e)
             if hasattr(e, 'response') and e.response is not None:
                 logger.error("Status: %s", e.response.status_code)
@@ -71,6 +109,7 @@ class HarnessAPIClient:
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
+            self._handle_auth_errors(e)
             logger.error("API Error: %s", e)
             if hasattr(e, 'response') and e.response is not None:
                 logger.error("Status: %s", e.response.status_code)
@@ -88,6 +127,7 @@ class HarnessAPIClient:
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
+            self._handle_auth_errors(e)
             logger.error("API Error: %s", e)
             if hasattr(e, 'response') and e.response is not None:
                 logger.error("Status: %s", e.response.status_code)
