@@ -72,6 +72,78 @@ harness-replicate-pipeline/
 - **Main script**: `python main.py` (recommended)
 - **Module**: `python -m src` (alternative)
 
+---
+
+## Testing
+
+The project includes a comprehensive test suite with both unit tests and integration tests, organized in separate directories.
+
+### Unit Tests (`tests/unit/`) - Recommended for Development
+
+Unit tests run quickly and don't require external dependencies:
+
+```bash
+# Run all unit tests (default behavior)
+pytest
+
+# Run with coverage
+pytest --cov=src --cov-report=term-missing
+
+# Explicitly run unit tests
+pytest tests/unit/ -v
+
+# Run specific test file
+pytest tests/unit/test_replicator.py -v
+```
+
+**Results**: ✅ 367 unit tests pass (100% success rate)
+
+### Integration Tests (`tests/integration/`) - Requires Harness API Access
+
+Integration tests make real API calls to Harness and require valid credentials:
+
+```bash
+# Quick setup and run
+./run_integration_tests.sh
+
+# Manual run (after configuring credentials)
+pytest tests/integration/ -v -s
+
+# Run specific integration test
+pytest tests/integration/test_integration.py::TestIntegrationMigration::test_create_organization -v -s
+```
+
+**Setup Required**: See [`tests/integration/README.md`](tests/integration/README.md) for detailed setup instructions.
+
+### Test Structure
+
+```
+tests/
+├── integration/                 # Integration tests (require Harness API)
+│   ├── README.md               # Integration test documentation
+│   ├── test_integration.py     # Core integration tests
+│   └── test_trigger_integration.py  # Trigger-specific tests
+├── test_*.py                   # Unit tests (no external dependencies)
+└── README_INTEGRATION.md       # Legacy integration docs (deprecated)
+```
+
+### Running Tests in CI/CD
+
+```yaml
+# Unit tests (always run)
+- name: Run unit tests
+  run: pytest tests/ --ignore=tests/integration --cov=src
+
+# Integration tests (optional, requires secrets)
+- name: Run integration tests
+  env:
+    INTEGRATION_TEST_DEST_URL: ${{ secrets.HARNESS_URL }}
+    INTEGRATION_TEST_DEST_API_KEY: ${{ secrets.HARNESS_API_KEY }}
+  run: pytest tests/integration/ -v
+```
+
+---
+
 ## Quick Start
 
 ### Option 1: Automated Setup (Recommended)
