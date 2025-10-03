@@ -5,24 +5,91 @@
 # Run this after integration tests to remove test data.
 #
 # Usage:
-#   ./tests/cleanup_integration_tests.sh
+#   ./tests/cleanup_integration_tests.sh [config_file]
 #
-# Environment Variables Required:
-#   INTEGRATION_TEST_DEST_URL - Destination Harness URL
-#   INTEGRATION_TEST_DEST_API_KEY - Destination API key
+# Configuration Sources (in priority order):
+#   1. Config file (config.json or specified file)
+#   2. Environment Variables:
+#      - INTEGRATION_TEST_DEST_URL - Destination Harness URL
+#      - INTEGRATION_TEST_DEST_API_KEY - Destination API key
 
-set -e
+# Note: Not using 'set -e' to allow graceful error handling
 
-# Check required environment variables
+# Function to extract value from JSON config file
+extract_config_value() {
+    local config_file="$1"
+    local json_path="$2"
+    
+    if [ -f "$config_file" ] && command -v python3 >/dev/null 2>&1; then
+        python3 -c "
+import json, sys
+try:
+    with open('$config_file') as f:
+        config = json.load(f)
+    keys = '$json_path'.split('.')
+    value = config
+    for key in keys:
+        value = value.get(key, '')
+    print(value if value else '')
+except:
+    print('')
+" 2>/dev/null
+    else
+        echo ""
+    fi
+}
+
+# Determine config file
+CONFIG_FILE="${1:-config.json}"
+if [ ! -f "$CONFIG_FILE" ]; then
+    CONFIG_FILE="config.json"
+fi
+
+echo "🔧 Loading configuration..."
+echo "   Config file: $CONFIG_FILE"
+
+# Load configuration from file first, then fallback to environment variables
+if [ -f "$CONFIG_FILE" ]; then
+    echo "   📄 Reading from config file..."
+    DEST_URL=$(extract_config_value "$CONFIG_FILE" "destination.base_url")
+    DEST_API_KEY=$(extract_config_value "$CONFIG_FILE" "destination.api_key")
+    
+    if [ -n "$DEST_URL" ] && [ -n "$DEST_API_KEY" ]; then
+        echo "   ✅ Configuration loaded from file"
+        INTEGRATION_TEST_DEST_URL="$DEST_URL"
+        INTEGRATION_TEST_DEST_API_KEY="$DEST_API_KEY"
+    else
+        echo "   ⚠️  Config file missing destination credentials, checking environment..."
+    fi
+else
+    echo "   ⚠️  Config file not found, checking environment variables..."
+fi
+
+# Fallback to environment variables if not loaded from config
 if [ -z "$INTEGRATION_TEST_DEST_URL" ] || [ -z "$INTEGRATION_TEST_DEST_API_KEY" ]; then
-    echo "❌ Error: Required environment variables not set"
-    echo "   INTEGRATION_TEST_DEST_URL: $INTEGRATION_TEST_DEST_URL"
-    echo "   INTEGRATION_TEST_DEST_API_KEY: ${INTEGRATION_TEST_DEST_API_KEY:0:10}..."
-    echo ""
-    echo "Please set these variables and run again:"
-    echo "   export INTEGRATION_TEST_DEST_URL='https://your-harness-url.com'"
-    echo "   export INTEGRATION_TEST_DEST_API_KEY='your-api-key'"
-    exit 1
+    echo "   🌍 Checking environment variables..."
+    # Use environment variables if available
+    if [ -n "$INTEGRATION_TEST_DEST_URL" ] && [ -n "$INTEGRATION_TEST_DEST_API_KEY" ]; then
+        echo "   ✅ Using environment variables"
+    else
+        echo "❌ Error: Required configuration not found"
+        echo ""
+        echo "Configuration sources tried:"
+        echo "   1. Config file: $CONFIG_FILE"
+        echo "      - destination.base_url: ${DEST_URL:-'not found'}"
+        echo "      - destination.api_key: ${DEST_API_KEY:+found}${DEST_API_KEY:-'not found'}"
+        echo "   2. Environment variables:"
+        echo "      - INTEGRATION_TEST_DEST_URL: ${INTEGRATION_TEST_DEST_URL:-'not set'}"
+        echo "      - INTEGRATION_TEST_DEST_API_KEY: ${INTEGRATION_TEST_DEST_API_KEY:+set}${INTEGRATION_TEST_DEST_API_KEY:-'not set'}"
+        echo ""
+        echo "Please provide configuration via:"
+        echo "   Option 1 - Update config file ($CONFIG_FILE):"
+        echo '     {"destination": {"base_url": "https://app.harness.io", "api_key": "your-api-key"}}'
+        echo "   Option 2 - Set environment variables:"
+        echo "     export INTEGRATION_TEST_DEST_URL='https://app.harness.io'"
+        echo "     export INTEGRATION_TEST_DEST_API_KEY='your-api-key'"
+        exit 1
+    fi
 fi
 
 echo "🧹 Cleaning up integration test resources..."
@@ -75,7 +142,14 @@ delete_resource() {
     local indent="$4"
     
     echo "${indent}🗑️  Deleting $resource_type: $resource_name"
-    api_call "DELETE" "$endpoint" > /dev/null
+    local delete_response
+    delete_response=$(api_call "DELETE" "$endpoint" 2>&1)
+    
+    if [ $? -eq 0 ]; then
+        echo "${indent}   ✅ Successfully deleted"
+    else
+        echo "${indent}   ⚠️  Delete failed (may already be deleted): $delete_response"
+    fi
 }
 
 # Function to list and process resources
@@ -83,7 +157,7 @@ process_resources() {
     local resource_type="$1"
     local endpoint="$2"
     local indent="$3"
-    local callback="$4"
+    local delete_endpoint_template="$4"
     
     local response
     local resources
@@ -95,8 +169,10 @@ process_resources() {
         echo "$resources" | while read -r resource; do
             if [ -n "$resource" ]; then
                 echo "${indent}   - $resource"
-                if [ -n "$callback" ]; then
-                    $callback "$resource"
+                if [ -n "$delete_endpoint_template" ]; then
+                    # Replace {resource} placeholder with actual resource identifier
+                    delete_endpoint=$(echo "$delete_endpoint_template" | sed "s/{resource}/$resource/g")
+                    delete_resource "$resource_type" "$resource" "$delete_endpoint" "${indent}      "
                 fi
             fi
         done
@@ -110,7 +186,7 @@ cleanup_input_sets() {
     local pipeline="$3"
     
     process_resources "input sets" "/v1/orgs/$org/projects/$project/input-sets?pipeline=$pipeline" "               " \
-        "delete_resource 'input set' \$resource '/v1/orgs/$org/projects/$project/input-sets/\$resource' '                  '"
+        "/v1/orgs/$org/projects/$project/input-sets/{resource}"
 }
 
 # Function to clean up pipelines in a project
@@ -121,6 +197,12 @@ cleanup_pipelines() {
     local pipelines_response
     local pipelines
     pipelines_response=$(api_call "GET" "/v1/orgs/$org/projects/$project/pipelines")
+    
+    if [ $? -ne 0 ] || [ -z "$pipelines_response" ]; then
+        echo "         ⚠️  Could not fetch pipelines for project $project"
+        return 0
+    fi
+    
     pipelines=$(extract_identifiers "$pipelines_response")
     
     if [ -n "$pipelines" ]; then
@@ -132,6 +214,8 @@ cleanup_pipelines() {
                 delete_resource "pipeline" "$pipeline" "/v1/orgs/$org/projects/$project/pipelines/$pipeline" "               "
             fi
         done
+    else
+        echo "         ℹ️  No pipelines found in project $project"
     fi
 }
 
@@ -141,7 +225,7 @@ cleanup_templates() {
     local project="$2"
     
     process_resources "templates" "/v1/orgs/$org/projects/$project/templates" "         " \
-        "delete_resource 'template' \$resource '/v1/orgs/$org/projects/$project/templates/\$resource' '               '"
+        "/v1/orgs/$org/projects/$project/templates/{resource}"
 }
 
 # Function to clean up projects in an organization
@@ -151,6 +235,12 @@ cleanup_projects() {
     local projects_response
     local projects
     projects_response=$(api_call "GET" "/v1/orgs/$org/projects")
+    
+    if [ $? -ne 0 ] || [ -z "$projects_response" ]; then
+        echo "   ⚠️  Could not fetch projects for organization $org"
+        return 0
+    fi
+    
     projects=$(extract_identifiers "$projects_response")
     
     if [ -n "$projects" ]; then
@@ -163,6 +253,8 @@ cleanup_projects() {
                 delete_resource "project" "$project" "/v1/orgs/$org/projects/$project" "      "
             fi
         done
+    else
+        echo "   ℹ️  No projects found in organization $org"
     fi
 }
 
