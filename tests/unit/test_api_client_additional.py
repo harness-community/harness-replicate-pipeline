@@ -24,15 +24,15 @@ class TestHarnessAPIClientAdditional:
         mock_response = Mock()
         mock_response.status_code = 400
         mock_response.text = "Bad Request Details"
-        
+
         mock_error = requests.exceptions.HTTPError("HTTP Error")
         mock_error.response = mock_response
         mock_put.side_effect = mock_error
-        
+
         # Act
         with patch('src.api_client.logger') as mock_logger:
             result = self.client.put("/test-endpoint", json={"test": "data"})
-        
+
         # Assert
         assert result is None
         mock_logger.error.assert_any_call("API Error: %s", mock_error)
@@ -47,11 +47,11 @@ class TestHarnessAPIClientAdditional:
         mock_error = requests.exceptions.RequestException("Network error")
         # No response attribute
         mock_put.side_effect = mock_error
-        
+
         # Act
         with patch('src.api_client.logger') as mock_logger:
             result = self.client.put("/test-endpoint", json={"test": "data"})
-        
+
         # Assert
         assert result is None
         mock_logger.error.assert_called_with("API Error: %s", mock_error)
@@ -63,15 +63,15 @@ class TestHarnessAPIClientAdditional:
         mock_response = Mock()
         mock_response.status_code = 404
         mock_response.text = "Not Found Details"
-        
+
         mock_error = requests.exceptions.HTTPError("HTTP Error")
         mock_error.response = mock_response
         mock_delete.side_effect = mock_error
-        
+
         # Act
         with patch('src.api_client.logger') as mock_logger:
             result = self.client.delete("/test-endpoint")
-        
+
         # Assert
         assert result is None
         mock_logger.error.assert_any_call("API Error: %s", mock_error)
@@ -86,11 +86,11 @@ class TestHarnessAPIClientAdditional:
         mock_error = requests.exceptions.RequestException("Network error")
         # No response attribute
         mock_delete.side_effect = mock_error
-        
+
         # Act
         with patch('src.api_client.logger') as mock_logger:
             result = self.client.delete("/test-endpoint")
-        
+
         # Assert
         assert result is None
         mock_logger.error.assert_called_with("API Error: %s", mock_error)
@@ -103,10 +103,10 @@ class TestHarnessAPIClientAdditional:
             "string_item",  # Non-dict item
             {"identifier": "item2", "name": "Item 2"}
         ]
-        
+
         # Act
         result = HarnessAPIClient.normalize_response(response)
-        
+
         # Assert
         expected = [
             {"identifier": "item1", "name": "Item 1"},
@@ -125,10 +125,10 @@ class TestHarnessAPIClientAdditional:
                 "project": {"identifier": "proj1", "name": "Project 1"}
             }
         ]
-        
+
         # Act
         result = HarnessAPIClient.normalize_response(response)
-        
+
         # Assert
         # Should prefer org over project when both exist
         expected = [{"identifier": "org1", "name": "Org 1"}]
@@ -143,10 +143,10 @@ class TestHarnessAPIClientAdditional:
                 "project": {"identifier": "proj1", "name": "Project 1"}
             }
         ]
-        
+
         # Act
         result = HarnessAPIClient.normalize_response(response)
-        
+
         # Assert
         expected = [{"identifier": "proj1", "name": "Project 1"}]
         assert result == expected
@@ -161,10 +161,10 @@ class TestHarnessAPIClientAdditional:
                 "project": "string_project"  # Non-dict project
             }
         ]
-        
+
         # Act
         result = HarnessAPIClient.normalize_response(response)
-        
+
         # Assert
         # Should return the original item since org/project are not dicts
         expected = [{"identifier": "item1", "org": "string_org", "project": "string_project"}]
@@ -180,10 +180,10 @@ class TestHarnessAPIClientAdditional:
             ],
             "totalElements": 2
         }
-        
+
         # Act
         result = HarnessAPIClient.normalize_response(response)
-        
+
         # Assert
         expected = [
             {"identifier": "item1", "name": "Item 1"},
@@ -200,10 +200,10 @@ class TestHarnessAPIClientAdditional:
             ],
             "totalElements": 1
         }
-        
+
         # Act
         result = HarnessAPIClient.normalize_response(response)
-        
+
         # Assert
         # Should return empty list when no content key
         assert result == []
@@ -215,10 +215,10 @@ class TestHarnessAPIClientAdditional:
         mock_response = Mock()
         mock_response.json.return_value = {"status": "updated"}
         mock_put.return_value = mock_response
-        
+
         # Act
         result = self.client.put("/test-endpoint", json={"test": "data"})
-        
+
         # Assert
         assert result == {"status": "updated"}
         mock_put.assert_called_once_with(
@@ -234,10 +234,10 @@ class TestHarnessAPIClientAdditional:
         mock_response = Mock()
         mock_response.json.return_value = {"status": "deleted"}
         mock_delete.return_value = mock_response
-        
+
         # Act
         result = self.client.delete("/test-endpoint", params={"id": "123"})
-        
+
         # Assert
         assert result == {"status": "deleted"}
         mock_delete.assert_called_once_with(

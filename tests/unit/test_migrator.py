@@ -54,10 +54,10 @@ class TestHarnessReplicator:
         assert replicator.dest_org == "dest-org"
         assert replicator.dest_project == "dest-project"
         assert replicator.config == self.config
-        
+
         # Verify API clients were created
         assert mock_client_class.call_count == 2
-        
+
         # Verify handlers were created
         mock_prereq.assert_called_once()
         mock_pipeline.assert_called_once()
@@ -78,11 +78,11 @@ class TestHarnessReplicator:
                                 mock_prereq = Mock()
                                 mock_prereq.verify_prerequisites.return_value = True
                                 mock_prereq_class.return_value = mock_prereq
-                                
+
                                 mock_pipeline = Mock()
                                 mock_pipeline.replicate_pipelines.return_value = True
                                 mock_pipeline_class.return_value = mock_pipeline
-                                
+
                                 replicator = HarnessReplicator(self.config)
 
         # Act
@@ -108,7 +108,7 @@ class TestHarnessReplicator:
                                 mock_prereq = Mock()
                                 mock_prereq.verify_prerequisites.return_value = False
                                 mock_prereq_class.return_value = mock_prereq
-                                
+
                                 replicator = HarnessReplicator(self.config)
 
         # Act
@@ -131,11 +131,11 @@ class TestHarnessReplicator:
                                 mock_prereq = Mock()
                                 mock_prereq.verify_prerequisites.return_value = True
                                 mock_prereq_class.return_value = mock_prereq
-                                
+
                                 mock_pipeline = Mock()
                                 mock_pipeline.replicate_pipelines.return_value = False
                                 mock_pipeline_class.return_value = mock_pipeline
-                                
+
                                 replicator = HarnessReplicator(self.config)
 
         # Act
@@ -161,7 +161,7 @@ class TestHarnessReplicator:
         with patch('src.output_orchestrator.get_orchestrator') as mock_get_orchestrator:
             mock_orchestrator = Mock()
             mock_get_orchestrator.return_value = mock_orchestrator
-            
+
             replicator.print_summary()
 
         # Assert

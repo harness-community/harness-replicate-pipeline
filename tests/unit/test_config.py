@@ -6,9 +6,9 @@ Tests configuration management with proper mocking and AAA methodology.
 
 import json
 import os
-from unittest.mock import Mock, patch, mock_open
+from unittest.mock import patch, mock_open
 
-from src.config import load_config, save_config, _apply_cli_overrides, _apply_env_overrides
+from src.config import load_config, save_config, _apply_env_overrides
 
 
 class TestLoadConfig:
@@ -168,374 +168,6 @@ class TestSaveConfig:
         mock_logger.error.assert_called_once()
 
 
-import pytest
-
-@pytest.mark.skip(reason="CLI overrides tests need refactoring for new architecture - testing private function that's now part of build_complete_config")
-class TestApplyCliOverrides:
-    """Test suite for _apply_cli_overrides function"""
-
-    def setup_method(self):
-        """Setup test fixtures before each test method"""
-        self.base_config = {
-            "source": {"base_url": "https://app.harness.io", "api_key": "test-key"},
-            "destination": {"base_url": "https://app3.harness.io", "api_key": "test-key2"},
-            "options": {"migrate_input_sets": True, "skip_existing": True}
-        }
-
-    def test__apply_cli_overrides_returns_copy(self):
-        """Test that _apply_cli_overrides returns a copy, not the original"""
-        # Arrange
-        args = Mock()
-        args.source_url = None
-        args.source_api_key = None
-        args.source_org = None
-        args.source_project = None
-        args.dest_url = None
-        args.dest_api_key = None
-        args.dest_org = None
-        args.dest_project = None
-        args.migrate_input_sets = None
-        args.no_migrate_input_sets = None
-        args.skip_existing = None
-        args.no_skip_existing = None
-
-        # Act
-        result = _apply_cli_overrides(self.base_config, args)
-
-        # Assert
-        assert result is not self.base_config
-        assert result == self.base_config
-
-    def test__apply_cli_overrides_source_url(self):
-        """Test applying source URL override"""
-        # Arrange
-        args = Mock()
-        args.source_url = "https://new-source.harness.io"
-        args.source_api_key = None
-        args.source_org = None
-        args.source_project = None
-        args.dest_url = None
-        args.dest_api_key = None
-        args.dest_org = None
-        args.dest_project = None
-        args.migrate_input_sets = None
-        args.no_migrate_input_sets = None
-        args.skip_existing = None
-        args.no_skip_existing = None
-
-        # Act
-        result = _apply_cli_overrides(self.base_config, args)
-
-        # Assert
-        assert result["source"]["base_url"] == "https://new-source.harness.io"
-        assert result["source"]["api_key"] == "test-key"  # Unchanged
-
-    def test__apply_cli_overrides_source_api_key(self):
-        """Test applying source API key override"""
-        # Arrange
-        args = Mock()
-        args.source_url = None
-        args.source_api_key = "new-api-key"
-        args.source_org = None
-        args.source_project = None
-        args.dest_url = None
-        args.dest_api_key = None
-        args.dest_org = None
-        args.dest_project = None
-        args.migrate_input_sets = None
-        args.no_migrate_input_sets = None
-        args.skip_existing = None
-        args.no_skip_existing = None
-
-        # Act
-        result = _apply_cli_overrides(self.base_config, args)
-
-        # Assert
-        assert result["source"]["api_key"] == "new-api-key"
-        assert result["source"]["base_url"] == "https://app.harness.io"  # Unchanged
-
-    def test__apply_cli_overrides_source_org(self):
-        """Test applying source org override"""
-        # Arrange
-        args = Mock()
-        args.source_url = None
-        args.source_api_key = None
-        args.source_org = "new-org"
-        args.source_project = None
-        args.dest_url = None
-        args.dest_api_key = None
-        args.dest_org = None
-        args.dest_project = None
-        args.migrate_input_sets = None
-        args.no_migrate_input_sets = None
-        args.skip_existing = None
-        args.no_skip_existing = None
-
-        # Act
-        result = _apply_cli_overrides(self.base_config, args)
-
-        # Assert
-        assert result["source"]["org"] == "new-org"
-
-    def test__apply_cli_overrides_source_project(self):
-        """Test applying source project override"""
-        # Arrange
-        args = Mock()
-        args.source_url = None
-        args.source_api_key = None
-        args.source_org = None
-        args.source_project = "new-project"
-        args.dest_url = None
-        args.dest_api_key = None
-        args.dest_org = None
-        args.dest_project = None
-        args.migrate_input_sets = None
-        args.no_migrate_input_sets = None
-        args.skip_existing = None
-        args.no_skip_existing = None
-
-        # Act
-        result = _apply_cli_overrides(self.base_config, args)
-
-        # Assert
-        assert result["source"]["project"] == "new-project"
-
-    def test__apply_cli_overrides_destination_url(self):
-        """Test applying destination URL override"""
-        # Arrange
-        args = Mock()
-        args.source_url = None
-        args.source_api_key = None
-        args.source_org = None
-        args.source_project = None
-        args.dest_url = "https://new-dest.harness.io"
-        args.dest_api_key = None
-        args.dest_org = None
-        args.dest_project = None
-        args.migrate_input_sets = None
-        args.no_migrate_input_sets = None
-        args.skip_existing = None
-        args.no_skip_existing = None
-
-        # Act
-        result = _apply_cli_overrides(self.base_config, args)
-
-        # Assert
-        assert result["destination"]["base_url"] == "https://new-dest.harness.io"
-
-    def test__apply_cli_overrides_destination_api_key(self):
-        """Test applying destination API key override"""
-        # Arrange
-        args = Mock()
-        args.source_url = None
-        args.source_api_key = None
-        args.source_org = None
-        args.source_project = None
-        args.dest_url = None
-        args.dest_api_key = "new-dest-key"
-        args.dest_org = None
-        args.dest_project = None
-        args.migrate_input_sets = None
-        args.no_migrate_input_sets = None
-        args.skip_existing = None
-        args.no_skip_existing = None
-
-        # Act
-        result = _apply_cli_overrides(self.base_config, args)
-
-        # Assert
-        assert result["destination"]["api_key"] == "new-dest-key"
-
-    def test__apply_cli_overrides_destination_org(self):
-        """Test applying destination org override"""
-        # Arrange
-        args = Mock()
-        args.source_url = None
-        args.source_api_key = None
-        args.source_org = None
-        args.source_project = None
-        args.dest_url = None
-        args.dest_api_key = None
-        args.dest_org = "new-dest-org"
-        args.dest_project = None
-        args.migrate_input_sets = None
-        args.no_migrate_input_sets = None
-        args.skip_existing = None
-        args.no_skip_existing = None
-
-        # Act
-        result = _apply_cli_overrides(self.base_config, args)
-
-        # Assert
-        assert result["destination"]["org"] == "new-dest-org"
-
-    def test__apply_cli_overrides_destination_project(self):
-        """Test applying destination project override"""
-        # Arrange
-        args = Mock()
-        args.source_url = None
-        args.source_api_key = None
-        args.source_org = None
-        args.source_project = None
-        args.dest_url = None
-        args.dest_api_key = None
-        args.dest_org = None
-        args.dest_project = "new-dest-project"
-        args.migrate_input_sets = None
-        args.no_migrate_input_sets = None
-        args.skip_existing = None
-        args.no_skip_existing = None
-
-        # Act
-        result = _apply_cli_overrides(self.base_config, args)
-
-        # Assert
-        assert result["destination"]["project"] == "new-dest-project"
-
-    def test__apply_cli_overrides_migrate_input_sets_true(self):
-        """Test applying migrate_input_sets=True override"""
-        # Arrange
-        args = Mock()
-        args.source_url = None
-        args.source_api_key = None
-        args.source_org = None
-        args.source_project = None
-        args.dest_url = None
-        args.dest_api_key = None
-        args.dest_org = None
-        args.dest_project = None
-        args.migrate_input_sets = True
-        args.no_migrate_input_sets = None
-        args.skip_existing = None
-        args.no_skip_existing = None
-
-        # Act
-        result = _apply_cli_overrides(self.base_config, args)
-
-        # Assert
-        assert result["options"]["migrate_input_sets"] is True
-
-    def test__apply_cli_overrides_no_migrate_input_sets_true(self):
-        """Test applying no_migrate_input_sets=True override"""
-        # Arrange
-        args = Mock()
-        args.source_url = None
-        args.source_api_key = None
-        args.source_org = None
-        args.source_project = None
-        args.dest_url = None
-        args.dest_api_key = None
-        args.dest_org = None
-        args.dest_project = None
-        args.migrate_input_sets = None
-        args.no_migrate_input_sets = True
-        args.skip_existing = None
-        args.no_skip_existing = None
-
-        # Act
-        result = _apply_cli_overrides(self.base_config, args)
-
-        # Assert
-        assert result["options"]["migrate_input_sets"] is False
-
-    def test__apply_cli_overrides_skip_existing_true(self):
-        """Test applying skip_existing=True override"""
-        # Arrange
-        args = Mock()
-        args.source_url = None
-        args.source_api_key = None
-        args.source_org = None
-        args.source_project = None
-        args.dest_url = None
-        args.dest_api_key = None
-        args.dest_org = None
-        args.dest_project = None
-        args.migrate_input_sets = None
-        args.no_migrate_input_sets = None
-        args.skip_existing = True
-        args.no_skip_existing = None
-
-        # Act
-        result = _apply_cli_overrides(self.base_config, args)
-
-        # Assert
-        assert result["options"]["skip_existing"] is True
-
-    def test__apply_cli_overrides_no_skip_existing_true(self):
-        """Test applying no_skip_existing=True override"""
-        # Arrange
-        args = Mock()
-        args.source_url = None
-        args.source_api_key = None
-        args.source_org = None
-        args.source_project = None
-        args.dest_url = None
-        args.dest_api_key = None
-        args.dest_org = None
-        args.dest_project = None
-        args.migrate_input_sets = None
-        args.no_migrate_input_sets = None
-        args.skip_existing = None
-        args.no_skip_existing = True
-
-        # Act
-        result = _apply_cli_overrides(self.base_config, args)
-
-        # Assert
-        assert result["options"]["skip_existing"] is False
-
-    def test__apply_cli_overrides_creates_missing_sections(self):
-        """Test that _apply_cli_overrides creates missing sections"""
-        # Arrange
-        empty_config = {}
-        args = Mock()
-        args.source_url = "https://app.harness.io"
-        args.source_api_key = "test-key"
-        args.source_org = None
-        args.source_project = None
-        args.dest_url = None
-        args.dest_api_key = None
-        args.dest_org = None
-        args.dest_project = None
-        args.migrate_input_sets = None
-        args.no_migrate_input_sets = None
-        args.skip_existing = None
-        args.no_skip_existing = None
-
-        # Act
-        result = _apply_cli_overrides(empty_config, args)
-
-        # Assert
-        assert "source" in result
-        assert result["source"]["base_url"] == "https://app.harness.io"
-        assert result["source"]["api_key"] == "test-key"
-
-    def test__apply_cli_overrides_creates_missing_options(self):
-        """Test that _apply_cli_overrides creates missing options section"""
-        # Arrange
-        config_without_options = {"source": {}, "destination": {}}
-        args = Mock()
-        args.source_url = None
-        args.source_api_key = None
-        args.source_org = None
-        args.source_project = None
-        args.dest_url = None
-        args.dest_api_key = None
-        args.dest_org = None
-        args.dest_project = None
-        args.migrate_input_sets = True
-        args.no_migrate_input_sets = None
-        args.skip_existing = None
-        args.no_skip_existing = None
-
-        # Act
-        result = _apply_cli_overrides(config_without_options, args)
-
-        # Assert
-        assert "options" in result
-        assert result["options"]["migrate_input_sets"] is True
-
-
 class TestApplyEnvOverrides:
     """Test suite for _apply_env_overrides function"""
 
@@ -562,10 +194,10 @@ class TestApplyEnvOverrides:
         """Test applying env overrides to empty config with no env vars"""
         # Arrange
         config = {}
-        
+
         # Act
         result = _apply_env_overrides(config)
-        
+
         # Assert
         assert result == {}
 
@@ -576,10 +208,10 @@ class TestApplyEnvOverrides:
         os.environ["HARNESS_SOURCE_URL"] = "https://env.harness.io"
         os.environ["HARNESS_SOURCE_API_KEY"] = "env-api-key"
         os.environ["HARNESS_DEST_ORG"] = "env-dest-org"
-        
+
         # Act
         result = _apply_env_overrides(config)
-        
+
         # Assert
         assert result["source"]["base_url"] == "https://env.harness.io"
         assert result["source"]["api_key"] == "env-api-key"
@@ -593,10 +225,10 @@ class TestApplyEnvOverrides:
         os.environ["HARNESS_SKIP_TRIGGERS"] = "1"
         os.environ["HARNESS_UPDATE_EXISTING"] = "yes"
         os.environ["HARNESS_DRY_RUN"] = "on"
-        
+
         # Act
         result = _apply_env_overrides(config)
-        
+
         # Assert
         assert result["options"]["skip_input_sets"] is True
         assert result["options"]["skip_triggers"] is True
@@ -611,10 +243,10 @@ class TestApplyEnvOverrides:
         os.environ["HARNESS_SKIP_TRIGGERS"] = "0"
         os.environ["HARNESS_UPDATE_EXISTING"] = "no"
         os.environ["HARNESS_DEBUG"] = "off"
-        
+
         # Act
         result = _apply_env_overrides(config)
-        
+
         # Assert
         assert result["options"]["skip_input_sets"] is False
         assert result["options"]["skip_triggers"] is False
@@ -630,10 +262,10 @@ class TestApplyEnvOverrides:
         }
         os.environ["HARNESS_SOURCE_URL"] = "https://env.harness.io"
         os.environ["HARNESS_SKIP_INPUT_SETS"] = "true"
-        
+
         # Act
         result = _apply_env_overrides(config)
-        
+
         # Assert
         assert result["source"]["base_url"] == "https://env.harness.io"  # Overridden
         assert result["source"]["api_key"] == "config-key"  # Unchanged
@@ -647,10 +279,10 @@ class TestApplyEnvOverrides:
             "pipelines": [{"identifier": "test"}]
         }
         os.environ["HARNESS_SOURCE_URL"] = "https://env.harness.io"
-        
+
         # Act
         result = _apply_env_overrides(config)
-        
+
         # Assert
         assert result["custom_section"]["custom_key"] == "custom_value"
         assert result["pipelines"] == [{"identifier": "test"}]
@@ -670,13 +302,13 @@ class TestApplyEnvOverrides:
             "HARNESS_DEST_ORG": "dest-org",
             "HARNESS_DEST_PROJECT": "dest-project",
         }
-        
+
         for var, value in connection_vars.items():
             os.environ[var] = value
-        
+
         # Act
         result = _apply_env_overrides(config)
-        
+
         # Assert
         assert result["source"]["base_url"] == "https://source.harness.io"
         assert result["source"]["api_key"] == "source-key"
@@ -697,13 +329,13 @@ class TestApplyEnvOverrides:
             "HARNESS_SKIP_TEMPLATES": "true",
             "HARNESS_UPDATE_EXISTING": "true",
         }
-        
+
         for var, value in option_vars.items():
             os.environ[var] = value
-        
+
         # Act
         result = _apply_env_overrides(config)
-        
+
         # Assert
         assert result["options"]["skip_input_sets"] is True
         assert result["options"]["skip_triggers"] is True
@@ -719,13 +351,13 @@ class TestApplyEnvOverrides:
             "HARNESS_DEBUG": "true",
             "HARNESS_NON_INTERACTIVE": "true",
         }
-        
+
         for var, value in runtime_vars.items():
             os.environ[var] = value
-        
+
         # Act
         result = _apply_env_overrides(config)
-        
+
         # Assert
         assert result["dry_run"] is True
         assert result["debug"] is True

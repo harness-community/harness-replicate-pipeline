@@ -11,6 +11,7 @@ from requests.exceptions import RequestException, HTTPError
 from src.api_client import HarnessAPIClient
 
 
+@pytest.mark.unit
 class TestHarnessAPIClient:
     """Test suite for HarnessAPIClient"""
 

@@ -4,13 +4,14 @@ Comprehensive unit tests for HarnessReplicator
 Tests replication functionality with proper mocking and AAA methodology.
 """
 
+import pytest
 from unittest.mock import patch
-import yaml
 
 from src.api_client import HarnessAPIClient
 from src.replicator import HarnessReplicator
 
 
+@pytest.mark.unit
 class TestHarnessReplicator:
     """Test suite for HarnessReplicator"""
 

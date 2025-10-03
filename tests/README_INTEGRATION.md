@@ -1,5 +1,29 @@
 # Integration Testing Guide
 
+**⚠️ DEPRECATED: This file has been moved to `tests/integration/README.md`**
+
+Integration tests have been reorganized into a dedicated `tests/integration/` directory. Please refer to the new location for up-to-date documentation.
+
+## Quick Migration Guide
+
+- **Old location**: `tests/test_integration.py` 
+- **New location**: `tests/integration/test_integration.py`
+- **Documentation**: `tests/integration/README.md`
+
+## Running Integration Tests
+
+```bash
+# New command (recommended)
+pytest tests/integration/ -v -s
+
+# Old command (still works)  
+pytest tests/integration/test_integration.py -v -s
+```
+
+---
+
+# Legacy Documentation (Deprecated)
+
 This guide explains how to run integration tests for the Harness Migration Toolkit. These tests create real resources in a destination Harness environment to verify end-to-end functionality.
 
 ## ⚠️ Important Safety Notes

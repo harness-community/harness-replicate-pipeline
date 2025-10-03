@@ -491,7 +491,7 @@ class TestGetSelectionsFromClients:
                 with patch('src.ui.select_pipelines', return_value=[{"identifier": "pipeline1"}]):
                     with patch('src.ui.select_or_create_organization', return_value="dest-org"):
                         with patch('src.ui.select_or_create_project', return_value="dest-project"):
-                            with patch('src.config.save_config') as mock_save:
+                            with patch('src.config.save_config'):
                                 result = get_selections_from_clients(source_client, dest_client, base_config, "config.json")
 
         # Assert
@@ -536,7 +536,7 @@ class TestGetSelectionsFromClients:
             with patch('src.ui.select_pipelines', return_value=[{"identifier": "pipeline1"}]):
                 with patch('src.ui.select_or_create_organization', return_value="dest-org"):
                     with patch('src.ui.select_or_create_project', return_value="dest-project"):
-                        with patch('src.config.save_config') as mock_save:
+                        with patch('src.config.save_config'):
                             result = get_selections_from_clients(source_client, dest_client, base_config, "config.json")
 
         # Assert

@@ -34,16 +34,16 @@ class TestInputSetHandler:
             "dry_run": False,
             "non_interactive": True
         }
-        
+
         # Create mock clients
         self.mock_source_client = Mock(spec=HarnessAPIClient)
         self.mock_dest_client = Mock(spec=HarnessAPIClient)
-        
+
         # Create replication stats
         self.replication_stats = {
             "input_sets": {"success": 0, "failed": 0, "skipped": 0}
         }
-        
+
         # Create handler
         self.handler = InputSetHandler(
             self.config,
@@ -57,10 +57,10 @@ class TestInputSetHandler:
         # Arrange
         pipeline_id = "test_pipeline"
         self.mock_source_client.get.return_value = None
-        
+
         # Act
         result = self.handler.replicate_input_sets(pipeline_id)
-        
+
         # Assert
         assert result is True
         assert self.replication_stats["input_sets"]["success"] == 0
@@ -73,11 +73,11 @@ class TestInputSetHandler:
         # Arrange
         pipeline_id = "test_pipeline"
         self.mock_source_client.get.return_value = {"data": {"content": []}}
-        
+
         with patch.object(HarnessAPIClient, 'normalize_response', return_value=[]):
             # Act
             result = self.handler.replicate_input_sets(pipeline_id)
-        
+
         # Assert
         assert result is True
         assert self.replication_stats["input_sets"]["success"] == 0
@@ -92,7 +92,7 @@ class TestInputSetHandler:
             "identifier": "test_input_set",
             "name": "Test Input Set"
         }
-        
+
         # Mock API responses
         self.mock_source_client.get.side_effect = [
             # List input sets response
@@ -100,20 +100,20 @@ class TestInputSetHandler:
             # Get input set details
             {"input_set_yaml": "inputSet:\n  name: Test Input Set\n  orgIdentifier: source_org\n  projectIdentifier: source_project"}
         ]
-        
+
         # Mock destination client - input set doesn't exist
         self.mock_dest_client.get.return_value = None
-        
+
         # Mock successful creation
         self.mock_dest_client.post.return_value = {"status": "SUCCESS"}
-        
+
         with patch.object(HarnessAPIClient, 'normalize_response', return_value=[input_set_data]):
             with patch('src.inputset_handler.YAMLUtils.update_identifiers') as mock_yaml_update:
                 mock_yaml_update.return_value = "updated_yaml"
-                
+
                 # Act
                 result = self.handler.replicate_input_sets(pipeline_id)
-        
+
         # Assert
         assert result is True
         assert self.replication_stats["input_sets"]["success"] == 1
@@ -129,7 +129,7 @@ class TestInputSetHandler:
             "identifier": "test_input_set",
             "name": "Test Input Set"
         }
-        
+
         # Mock API responses
         self.mock_source_client.get.side_effect = [
             # List input sets response
@@ -137,14 +137,14 @@ class TestInputSetHandler:
             # Get input set details
             {"input_set_yaml": "inputSet:\n  name: Test Input Set"}
         ]
-        
+
         # Mock existing input set check (exists)
         self.mock_dest_client.get.return_value = {"identifier": "test_input_set"}
-        
+
         with patch.object(HarnessAPIClient, 'normalize_response', return_value=[input_set_data]):
             # Act
             result = self.handler.replicate_input_sets(pipeline_id)
-        
+
         # Assert
         assert result is True
         assert self.replication_stats["input_sets"]["success"] == 0
@@ -160,7 +160,7 @@ class TestInputSetHandler:
             "identifier": "test_input_set",
             "name": "Test Input Set"
         }
-        
+
         # Override config to update existing
         self.config["options"]["update_existing"] = True
         handler = InputSetHandler(
@@ -169,7 +169,7 @@ class TestInputSetHandler:
             self.mock_dest_client,
             self.replication_stats
         )
-        
+
         # Mock API responses
         self.mock_source_client.get.side_effect = [
             # List input sets response
@@ -177,20 +177,20 @@ class TestInputSetHandler:
             # Get input set details
             {"input_set_yaml": "inputSet:\n  name: Test Input Set"}
         ]
-        
+
         # Mock existing input set check (exists)
         self.mock_dest_client.get.return_value = {"identifier": "test_input_set"}
-        
+
         # Mock successful update
         self.mock_dest_client.put.return_value = {"status": "SUCCESS"}
-        
+
         with patch.object(HarnessAPIClient, 'normalize_response', return_value=[input_set_data]):
             with patch('src.inputset_handler.YAMLUtils.update_identifiers') as mock_yaml_update:
                 mock_yaml_update.return_value = "updated_yaml"
-                
+
                 # Act
                 result = handler.replicate_input_sets(pipeline_id)
-        
+
         # Assert
         assert result is True
         assert self.replication_stats["input_sets"]["success"] == 1
@@ -205,7 +205,7 @@ class TestInputSetHandler:
             "identifier": "test_input_set",
             "name": "Test Input Set"
         }
-        
+
         # Mock API responses
         self.mock_source_client.get.side_effect = [
             # List input sets response
@@ -213,20 +213,20 @@ class TestInputSetHandler:
             # Get input set details
             {"input_set_yaml": "inputSet:\n  name: Test Input Set"}
         ]
-        
+
         # Mock destination client - input set doesn't exist
         self.mock_dest_client.get.return_value = None
-        
+
         # Mock failed creation
         self.mock_dest_client.post.return_value = None
-        
+
         with patch.object(HarnessAPIClient, 'normalize_response', return_value=[input_set_data]):
             with patch('src.inputset_handler.YAMLUtils.update_identifiers') as mock_yaml_update:
                 mock_yaml_update.return_value = "updated_yaml"
-                
+
                 # Act
                 result = self.handler.replicate_input_sets(pipeline_id)
-        
+
         # Assert
         assert result is True  # Method continues despite individual failures
         assert self.replication_stats["input_sets"]["failed"] == 1
@@ -240,7 +240,7 @@ class TestInputSetHandler:
             "identifier": "test_input_set",
             "name": "Test Input Set"
         }
-        
+
         # Enable dry run
         self.config["dry_run"] = True
         handler = InputSetHandler(
@@ -249,7 +249,7 @@ class TestInputSetHandler:
             self.mock_dest_client,
             self.replication_stats
         )
-        
+
         # Mock API responses
         self.mock_source_client.get.side_effect = [
             # List input sets response
@@ -257,17 +257,17 @@ class TestInputSetHandler:
             # Get input set details
             {"input_set_yaml": "inputSet:\n  name: Test Input Set"}
         ]
-        
+
         # Mock destination client - input set doesn't exist
         self.mock_dest_client.get.return_value = None
-        
+
         with patch.object(HarnessAPIClient, 'normalize_response', return_value=[input_set_data]):
             with patch('src.inputset_handler.YAMLUtils.update_identifiers') as mock_yaml_update:
                 mock_yaml_update.return_value = "updated_yaml"
-                
+
                 # Act
                 result = handler.replicate_input_sets(pipeline_id)
-        
+
         # Assert
         assert result is True
         assert self.replication_stats["input_sets"]["success"] == 1
@@ -283,7 +283,7 @@ class TestInputSetHandler:
             "identifier": "test_input_set",
             "name": "Test Input Set"
         }
-        
+
         # Mock API responses
         self.mock_source_client.get.side_effect = [
             # List input sets response
@@ -291,11 +291,11 @@ class TestInputSetHandler:
             # Get input set details (fails)
             None
         ]
-        
+
         with patch.object(HarnessAPIClient, 'normalize_response', return_value=[input_set_data]):
             # Act
             result = self.handler.replicate_input_sets(pipeline_id)
-        
+
         # Assert
         assert result is True  # Method continues despite individual failures
         assert self.replication_stats["input_sets"]["failed"] == 1
@@ -309,7 +309,7 @@ class TestInputSetHandler:
             "identifier": "test_input_set",
             "name": "Test Input Set"
         }
-        
+
         # Mock API responses
         self.mock_source_client.get.side_effect = [
             # List input sets response
@@ -317,17 +317,17 @@ class TestInputSetHandler:
             # Get input set details (no YAML content)
             {"identifier": "test_input_set", "name": "Test Input Set"}
         ]
-        
+
         # Mock destination client - input set doesn't exist
         self.mock_dest_client.get.return_value = None
-        
+
         # Mock successful creation
         self.mock_dest_client.post.return_value = {"status": "SUCCESS"}
-        
+
         with patch.object(HarnessAPIClient, 'normalize_response', return_value=[input_set_data]):
             # Act
             result = self.handler.replicate_input_sets(pipeline_id)
-        
+
         # Assert
         assert result is True
         assert self.replication_stats["input_sets"]["success"] == 1
@@ -342,7 +342,7 @@ class TestInputSetHandler:
             {"identifier": "input_set_1", "name": "Input Set 1"},
             {"identifier": "input_set_2", "name": "Input Set 2"}
         ]
-        
+
         # Mock API responses
         self.mock_source_client.get.side_effect = [
             # List input sets response
@@ -352,20 +352,20 @@ class TestInputSetHandler:
             # Get input set 2 details
             {"input_set_yaml": "inputSet:\n  name: Input Set 2"}
         ]
-        
+
         # Mock destination client - input sets don't exist
         self.mock_dest_client.get.return_value = None
-        
+
         # Mock successful creation
         self.mock_dest_client.post.return_value = {"status": "SUCCESS"}
-        
+
         with patch.object(HarnessAPIClient, 'normalize_response', return_value=input_set_data):
             with patch('src.inputset_handler.YAMLUtils.update_identifiers') as mock_yaml_update:
                 mock_yaml_update.return_value = "updated_yaml"
                 with patch('src.inputset_handler.time.sleep'):  # Mock sleep to speed up test
                     # Act
                     result = self.handler.replicate_input_sets(pipeline_id)
-        
+
         # Assert
         assert result is True
         assert self.replication_stats["input_sets"]["success"] == 2
@@ -380,7 +380,7 @@ class TestInputSetHandler:
             "identifier": "test_input_set",
             "name": "Test Input Set"
         }
-        
+
         # Mock API responses
         self.mock_source_client.get.side_effect = [
             # List input sets response
@@ -388,17 +388,17 @@ class TestInputSetHandler:
             # Get input set details (non-dict response)
             "invalid_response"
         ]
-        
+
         # Mock destination client - input set doesn't exist
         self.mock_dest_client.get.return_value = None
-        
+
         # Mock successful creation
         self.mock_dest_client.post.return_value = {"status": "SUCCESS"}
-        
+
         with patch.object(HarnessAPIClient, 'normalize_response', return_value=[input_set_data]):
             # Act
             result = self.handler.replicate_input_sets(pipeline_id)
-        
+
         # Assert
         assert result is True
         assert self.replication_stats["input_sets"]["success"] == 1

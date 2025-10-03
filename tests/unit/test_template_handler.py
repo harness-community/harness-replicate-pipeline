@@ -35,21 +35,21 @@ class TestTemplateHandler:
             "dry_run": False,
             "non_interactive": True
         }
-        
+
         # Create mock clients
         self.mock_source_client = Mock(spec=HarnessAPIClient)
         self.mock_dest_client = Mock(spec=HarnessAPIClient)
-        
+
         # Create replication stats
         self.replication_stats = {
             "templates": {"success": 0, "failed": 0, "skipped": 0}
         }
-        
+
         # Create handler
         self.handler = TemplateHandler(
-            self.config, 
-            self.mock_source_client, 
-            self.mock_dest_client, 
+            self.config,
+            self.mock_source_client,
+            self.mock_dest_client,
             self.replication_stats
         )
 
@@ -59,10 +59,10 @@ class TestTemplateHandler:
         template_ref = "my-template"
         version_label = "v1"
         self.mock_dest_client.get.return_value = {"identifier": template_ref}
-        
+
         # Act
         result = self.handler.check_template_exists(template_ref, version_label)
-        
+
         # Assert
         assert result is True
         self.mock_dest_client.get.assert_called_once()
@@ -73,10 +73,10 @@ class TestTemplateHandler:
         template_ref = "my-template"
         version_label = "v1"
         self.mock_dest_client.get.return_value = None
-        
+
         # Act
         result = self.handler.check_template_exists(template_ref, version_label)
-        
+
         # Assert
         assert result is False
         self.mock_dest_client.get.assert_called_once()
@@ -86,10 +86,10 @@ class TestTemplateHandler:
         # Arrange
         template_ref = "my-template"
         self.mock_dest_client.get.return_value = {"identifier": template_ref}
-        
+
         # Act
         result = self.handler.check_template_exists(template_ref)
-        
+
         # Assert
         assert result is True
         # Verify endpoint was built without sub_resource
@@ -106,19 +106,19 @@ class TestTemplateHandler:
                 "yaml": "template:\n  name: My Template\n  orgIdentifier: source_org\n  projectIdentifier: source_project"
             }
         }
-        
+
         # Mock source client returns template data
         self.mock_source_client.get.return_value = template_data
-        
+
         # Mock destination client successful creation
         self.mock_dest_client.post.return_value = {"status": "SUCCESS"}
-        
+
         with patch('src.template_handler.YAMLUtils.update_identifiers') as mock_yaml_update:
             mock_yaml_update.return_value = "updated_yaml"
-            
+
             # Act
             result = self.handler.replicate_template(template_ref, version_label)
-        
+
         # Assert
         assert result is True
         assert self.replication_stats["templates"]["success"] == 1
@@ -130,13 +130,13 @@ class TestTemplateHandler:
         # Arrange
         template_ref = "my-template"
         version_label = "v1"
-        
+
         # Mock source client returns None
         self.mock_source_client.get.return_value = None
-        
+
         # Act
         result = self.handler.replicate_template(template_ref, version_label)
-        
+
         # Assert
         assert result is False
         assert self.replication_stats["templates"]["failed"] == 1
@@ -152,19 +152,19 @@ class TestTemplateHandler:
                 "yaml": "template:\n  name: My Template"
             }
         }
-        
+
         # Mock source client returns template data
         self.mock_source_client.get.return_value = template_data
-        
+
         # Mock destination client failed creation
         self.mock_dest_client.post.return_value = None
-        
+
         with patch('src.template_handler.YAMLUtils.update_identifiers') as mock_yaml_update:
             mock_yaml_update.return_value = "updated_yaml"
-            
+
             # Act
             result = self.handler.replicate_template(template_ref, version_label)
-        
+
         # Assert
         assert result is False
         assert self.replication_stats["templates"]["failed"] == 1
@@ -174,12 +174,12 @@ class TestTemplateHandler:
         # Arrange
         self.config["dry_run"] = True
         handler = TemplateHandler(
-            self.config, 
-            self.mock_source_client, 
-            self.mock_dest_client, 
+            self.config,
+            self.mock_source_client,
+            self.mock_dest_client,
             self.replication_stats
         )
-        
+
         template_ref = "my-template"
         version_label = "v1"
         template_data = {
@@ -187,16 +187,16 @@ class TestTemplateHandler:
                 "yaml": "template:\n  name: My Template"
             }
         }
-        
+
         # Mock source client returns template data
         self.mock_source_client.get.return_value = template_data
-        
+
         with patch('src.template_handler.YAMLUtils.update_identifiers') as mock_yaml_update:
             mock_yaml_update.return_value = "updated_yaml"
-            
+
             # Act
             result = handler.replicate_template(template_ref, version_label)
-        
+
         # Assert
         assert result is True
         assert self.replication_stats["templates"]["success"] == 1
@@ -212,16 +212,16 @@ class TestTemplateHandler:
             "identifier": template_ref,
             "name": "My Template"
         }
-        
+
         # Mock source client returns template data without YAML
         self.mock_source_client.get.return_value = template_data
-        
+
         # Mock destination client successful creation
         self.mock_dest_client.post.return_value = {"status": "SUCCESS"}
-        
+
         # Act
         result = self.handler.replicate_template(template_ref, version_label)
-        
+
         # Assert
         assert result is False  # Should fail when template has no YAML content
         assert self.replication_stats["templates"]["failed"] == 1
@@ -243,13 +243,13 @@ pipeline:
           templateRef: stage-template
           versionLabel: v2
 """
-        
+
         with patch('src.template_handler.YAMLUtils.extract_template_refs') as mock_extract:
             mock_extract.return_value = [("my-template", "v1"), ("stage-template", "v2")]
-            
+
             # Act
             result = YAMLUtils.extract_template_refs(yaml_content)
-        
+
         # Assert
         assert result == [("my-template", "v1"), ("stage-template", "v2")]
         mock_extract.assert_called_once_with(yaml_content)
@@ -264,13 +264,13 @@ pipeline:
     - stage:
         name: Test Stage
 """
-        
+
         with patch('src.template_handler.YAMLUtils.extract_template_refs') as mock_extract:
             mock_extract.return_value = []
-            
+
             # Act
             result = YAMLUtils.extract_template_refs(yaml_content)
-        
+
         # Assert
         assert result == []
         mock_extract.assert_called_once_with(yaml_content)
@@ -280,13 +280,13 @@ pipeline:
         # Arrange
         template_refs = [("template1", "v1"), ("template2", "v2")]
         pipeline_name = "Test Pipeline"
-        
+
         # Mock all templates exist
         self.mock_dest_client.get.return_value = {"identifier": "template"}
-        
+
         # Act
         result = self.handler.handle_missing_templates(template_refs, pipeline_name)
-        
+
         # Assert
         assert result is True
         assert self.mock_dest_client.get.call_count == 2
@@ -296,29 +296,29 @@ pipeline:
         # Arrange
         template_refs = [("template1", "v1"), ("template2", "v2")]
         pipeline_name = "Test Pipeline"
-        
+
         # Mock first template exists, second doesn't
         self.mock_dest_client.get.side_effect = [
             {"identifier": "template1"},  # First template exists
             None  # Second template doesn't exist
         ]
-        
+
         # Mock source template data for replication
         self.mock_source_client.get.return_value = {
             "template": {
                 "yaml": "template:\n  name: Template 2"
             }
         }
-        
+
         # Mock successful replication
         self.mock_dest_client.post.return_value = {"status": "SUCCESS"}
-        
+
         with patch('src.template_handler.YAMLUtils.update_identifiers') as mock_yaml_update:
             mock_yaml_update.return_value = "updated_yaml"
             with patch('src.template_handler.time.sleep'):  # Mock sleep to speed up test
                 # Act
                 result = self.handler.handle_missing_templates(template_refs, pipeline_name)
-        
+
         # Assert
         assert result is True
         assert self.replication_stats["templates"]["success"] == 1
@@ -328,16 +328,16 @@ pipeline:
         # Arrange
         template_refs = [("template1", "v1")]
         pipeline_name = "Test Pipeline"
-        
+
         # Mock template doesn't exist
         self.mock_dest_client.get.return_value = None
-        
+
         # Mock source template not found
         self.mock_source_client.get.return_value = None
-        
+
         # Act
         result = self.handler.handle_missing_templates(template_refs, pipeline_name)
-        
+
         # Assert
         assert result is True  # handle_missing_templates always returns True
         assert self.replication_stats["templates"]["failed"] == 1
@@ -347,10 +347,10 @@ pipeline:
         # Arrange
         template_refs = []
         pipeline_name = "Test Pipeline"
-        
+
         # Act
         result = self.handler.handle_missing_templates(template_refs, pipeline_name)
-        
+
         # Assert
         assert result is True
         self.mock_dest_client.get.assert_not_called()
@@ -360,18 +360,18 @@ pipeline:
         # Arrange
         self.config["options"]["skip_templates"] = True
         handler = TemplateHandler(
-            self.config, 
-            self.mock_source_client, 
-            self.mock_dest_client, 
+            self.config,
+            self.mock_source_client,
+            self.mock_dest_client,
             self.replication_stats
         )
-        
+
         template_refs = [("template1", "v1")]
         pipeline_name = "Test Pipeline"
-        
+
         # Act
         result = handler.handle_missing_templates(template_refs, pipeline_name)
-        
+
         # Assert
         assert result is True
         # Should check if templates exist but not replicate them
@@ -388,19 +388,19 @@ pipeline:
                 "yaml": "template:\n  name: My Template"
             }
         }
-        
+
         # Mock source client returns template data
         self.mock_source_client.get.return_value = template_data
-        
+
         # Mock destination client successful creation
         self.mock_dest_client.post.return_value = {"status": "SUCCESS"}
-        
+
         with patch('src.template_handler.YAMLUtils.update_identifiers') as mock_yaml_update:
             mock_yaml_update.return_value = "updated_yaml"
-            
+
             # Act
             result = self.handler.replicate_template(template_ref)
-        
+
         # Assert
         assert result is True
         assert self.replication_stats["templates"]["success"] == 1
@@ -413,29 +413,29 @@ pipeline:
         # Arrange
         template_refs = [("template1", "v1"), ("template2", "v2"), ("template3", "v3")]
         pipeline_name = "Test Pipeline"
-        
+
         # Mock first template exists, second can be replicated, third fails
         self.mock_dest_client.get.side_effect = [
             {"identifier": "template1"},  # First exists
             None,  # Second doesn't exist
             None   # Third doesn't exist
         ]
-        
+
         # Mock source responses for replication attempts
         self.mock_source_client.get.side_effect = [
             {"template": {"yaml": "template:\n  name: Template 2"}},  # Second template found
             None  # Third template not found in source
         ]
-        
+
         # Mock successful creation for second template
         self.mock_dest_client.post.return_value = {"status": "SUCCESS"}
-        
+
         with patch('src.template_handler.YAMLUtils.update_identifiers') as mock_yaml_update:
             mock_yaml_update.return_value = "updated_yaml"
             with patch('src.template_handler.time.sleep'):  # Mock sleep to speed up test
                 # Act
                 result = self.handler.handle_missing_templates(template_refs, pipeline_name)
-        
+
         # Assert
         assert result is True  # handle_missing_templates always returns True
         assert self.replication_stats["templates"]["success"] == 1  # Second template succeeded
@@ -446,16 +446,16 @@ pipeline:
         # Arrange
         template_ref = "my-template"
         version_label = "v1"
-        
+
         # Mock source client returns non-dict data
         self.mock_source_client.get.return_value = "invalid_data"
-        
+
         # Mock destination client successful creation
         self.mock_dest_client.post.return_value = {"status": "SUCCESS"}
-        
+
         # Act
         result = self.handler.replicate_template(template_ref, version_label)
-        
+
         # Assert
         assert result is False  # Should fail when template data is not a dict
         assert self.replication_stats["templates"]["failed"] == 1

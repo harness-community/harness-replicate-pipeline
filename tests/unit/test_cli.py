@@ -5,10 +5,7 @@ Tests command-line interface functionality with proper mocking and AAA methodolo
 """
 
 import logging
-import pytest
 from unittest.mock import Mock, patch
-
-from src.cli import main
 from src.logging_utils import setup_logging
 from src.mode_handlers import ModeHandlers
 from src.config_validator import ConfigValidator
@@ -53,7 +50,7 @@ class TestSetupLogging:
                     mock_get_logger.return_value = mock_logger
                     mock_handler = Mock()
                     mock_file_handler.return_value = mock_handler
-                    
+
                     setup_logging(debug=False)
 
         # Assert
@@ -232,147 +229,3 @@ class TestModeHandlers:
 
         # Assert
         mock_exit.assert_called_once_with(1)
-
-
-@pytest.mark.skip(reason="Main function tests need refactoring for new architecture - complex integration testing")
-class TestMain:
-    """Test suite for main function"""
-
-    def test_main_non_interactive_mode(self):
-        """Test main function in non-interactive mode"""
-        # Arrange
-        test_args = [
-            'main.py',
-            '--non-interactive',
-            '--config', 'config.json'
-        ]
-
-        # Act
-        with patch('sys.argv', test_args):
-            with patch('src.cli.ModeHandlers.non_interactive_mode', return_value={"test": "config"}) as mock_non_interactive:
-                with patch('src.cli.apply_cli_overrides', return_value={"test": "config"}):
-                    with patch('src.cli.ConfigValidator.validate_non_interactive_config', return_value=True):
-                        with patch('src.cli.HarnessReplicator') as mock_replicator_class:
-                            with patch('src.cli.sys.exit') as mock_exit:
-                                main()
-
-        # Assert
-        mock_non_interactive.assert_called_once_with("config.json")
-        mock_replicator_class.assert_called_once()
-        mock_exit.assert_called_once_with(0)
-
-    def test_main_interactive_mode(self):
-        """Test main function in interactive mode"""
-        # Arrange
-        test_args = [
-            'main.py',
-            '--config', 'config.json'
-        ]
-
-        # Act
-        with patch('sys.argv', test_args):
-            with patch('src.cli.ModeHandlers.interactive_mode', return_value={"test": "config"}) as mock_interactive:
-                with patch('src.cli.apply_cli_overrides', return_value={"test": "config"}):
-                    with patch('src.cli.HarnessReplicator') as mock_replicator_class:
-                        with patch('src.cli.sys.exit') as mock_exit:
-                            main()
-
-        # Assert
-        mock_interactive.assert_called_once_with("config.json")
-        mock_replicator_class.assert_called_once()
-        mock_exit.assert_called_once_with(0)
-
-    def test_main_dry_run_mode(self):
-        """Test main function in dry run mode"""
-        # Arrange
-        test_args = [
-            'main.py',
-            '--dry-run',
-            '--config', 'config.json'
-        ]
-
-        # Act
-        with patch('sys.argv', test_args):
-            with patch('src.cli.ModeHandlers.interactive_mode', return_value={"test": "config"}) as mock_interactive:
-                with patch('src.cli.apply_cli_overrides', return_value={"test": "config", "dry_run": True}):
-                    with patch('src.cli.HarnessReplicator') as mock_replicator_class:
-                        with patch('src.cli.sys.exit') as mock_exit:
-                            main()
-
-        # Assert
-        mock_interactive.assert_called_once_with("config.json")
-        mock_replicator_class.assert_called_once()
-        mock_exit.assert_called_once_with(0)
-
-    def test_main_debug_mode(self):
-        """Test main function in debug mode"""
-        # Arrange
-        test_args = [
-            'main.py',
-            '--debug',
-            '--config', 'config.json'
-        ]
-
-        # Act
-        with patch('sys.argv', test_args):
-            with patch('src.cli.setup_logging') as mock_setup_logging:
-                with patch('src.cli.ModeHandlers.interactive_mode', return_value={"test": "config"}) as mock_interactive:
-                    with patch('src.cli.apply_cli_overrides', return_value={"test": "config"}):
-                        with patch('src.cli.HarnessReplicator') as mock_replicator_class:
-                            with patch('src.cli.sys.exit') as mock_exit:
-                                main()
-
-        # Assert
-        mock_setup_logging.assert_called_once_with(debug=True)
-        mock_interactive.assert_called_once_with("config.json")
-        mock_replicator_class.assert_called_once()
-        mock_exit.assert_called_once_with(0)
-
-    def test_main_replication_fails(self):
-        """Test main function when replication fails"""
-        # Arrange
-        test_args = [
-            'main.py',
-            '--config', 'config.json'
-        ]
-
-        # Act
-        with patch('sys.argv', test_args):
-            with patch('src.cli.ModeHandlers.interactive_mode', return_value={"test": "config"}) as mock_interactive:
-                with patch('src.cli.apply_cli_overrides', return_value={"test": "config"}):
-                    with patch('src.cli.HarnessReplicator') as mock_replicator_class:
-                        mock_replicator = Mock()
-                        mock_replicator.run_replication.return_value = False
-                        mock_replicator_class.return_value = mock_replicator
-                        with patch('src.cli.sys.exit') as mock_exit:
-                            main()
-
-        # Assert
-        mock_interactive.assert_called_once_with("config.json")
-        mock_replicator_class.assert_called_once()
-        mock_exit.assert_called_once_with(1)
-
-    def test_main_with_cli_overrides(self):
-        """Test main function with CLI argument overrides"""
-        # Arrange
-        test_args = [
-            'main.py',
-            '--source-org', 'test-org',
-            '--dest-org', 'dest-org',
-            '--config', 'config.json'
-        ]
-
-        # Act
-        with patch('sys.argv', test_args):
-            with patch('src.cli.ModeHandlers.interactive_mode', return_value={"test": "config"}) as mock_interactive:
-                with patch('src.cli.apply_cli_overrides') as mock_apply_overrides:
-                    mock_apply_overrides.return_value = {"test": "config", "source": {"org": "test-org"}}
-                    with patch('src.cli.HarnessReplicator') as mock_replicator_class:
-                        with patch('src.cli.sys.exit') as mock_exit:
-                            main()
-
-        # Assert
-        mock_interactive.assert_called_once_with("config.json")
-        mock_apply_overrides.assert_called_once()
-        mock_replicator_class.assert_called_once()
-        mock_exit.assert_called_once_with(0)

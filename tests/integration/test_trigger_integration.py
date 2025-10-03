@@ -33,7 +33,7 @@ def _get_destination_config():
     dest_url = os.getenv("INTEGRATION_TEST_DEST_URL")
     dest_api_key = os.getenv("INTEGRATION_TEST_DEST_API_KEY")
 
-    if dest_url and dest_api_key:
+    if dest_url and dest_api_key and _is_valid_config(dest_url, dest_api_key):
         return dest_url, dest_api_key
 
     # Fall back to config.json
@@ -45,7 +45,7 @@ def _get_destination_config():
         dest_url = dest_config.get("base_url")
         dest_api_key = dest_config.get("api_key")
 
-        if dest_url and dest_api_key:
+        if dest_url and dest_api_key and _is_valid_config(dest_url, dest_api_key):
             return dest_url, dest_api_key
     except (FileNotFoundError, json.JSONDecodeError, KeyError):
         pass
@@ -53,12 +53,20 @@ def _get_destination_config():
     return None, None
 
 
+def _is_valid_config(url, api_key):
+    """Check if the configuration values are valid (not placeholders)"""
+    # Common placeholder values that should be treated as invalid
+    invalid_api_keys = {"key", "your-api-key", "test-key", "placeholder", ""}
+    invalid_urls = {"https://your-harness-url", ""}
+    
+    return (
+        api_key not in invalid_api_keys and 
+        url not in invalid_urls and
+        len(api_key) > 10  # Real API keys are longer than placeholder values
+    )
+
+
 @pytest.mark.integration
-@pytest.mark.skipif(
-    _get_destination_config() == (None, None),
-    reason="Integration tests require destination configuration via "
-    "environment variables or config.json"
-)
 class TestTriggerIntegration:
     """Integration tests for trigger API endpoints and functionality"""
 
@@ -66,6 +74,14 @@ class TestTriggerIntegration:
     def setup_integration_test(self):
         """Setup integration test environment"""
         self.dest_url, self.dest_api_key = _get_destination_config()
+        
+        if not self.dest_url or not self.dest_api_key:
+            pytest.fail(
+                "Integration tests require valid Harness configuration.\n"
+                "Please set up config.json with valid destination credentials or use environment variables:\n"
+                "  INTEGRATION_TEST_DEST_URL=https://app.harness.io\n"
+                "  INTEGRATION_TEST_DEST_API_KEY=your-api-key"
+            )
 
         # Test identifiers with timestamp to avoid conflicts
         timestamp = int(time.time())
@@ -81,14 +97,14 @@ class TestTriggerIntegration:
         # Create test organization and project first
         self._create_test_org_and_project()
 
-        print(f"\n=== Integration Test Setup ===")
+        print("\n=== Integration Test Setup ===")
         print(f"Test Org: {self.test_org}")
         print(f"Test Project: {self.test_project}")
         print(f"Test Pipeline: {self.test_pipeline}")
         print(f"Test Trigger: {self.test_trigger}")
         print(f"Destination URL: {self.dest_url}")
-        print(f"=== Manual Cleanup Required ===")
-        print(f"After tests, delete with:")
+        print("=== Manual Cleanup Required ===")
+        print("After tests, delete with:")
         print(f'curl -X DELETE "{self.dest_url}/v1/orgs/{self.test_org}" -H "x-api-key: {self.dest_api_key}"')
         print("================================\n")
 
@@ -183,9 +199,9 @@ inputSet:
         # Try different potential input set creation endpoints
         potential_endpoints = [
             f"/v1/orgs/{self.test_org}/projects/{self.test_project}/input-sets",
-            f"/pipeline/api/inputSets",
+            "/pipeline/api/inputSets",
         ]
-        
+
         result = None
         for endpoint in potential_endpoints:
             try:
@@ -203,23 +219,23 @@ inputSet:
 
     def test_trigger_api_endpoints_discovery(self):
         """Test to discover and verify trigger API endpoints"""
-        print(f"\n=== Testing Correct Trigger API Endpoints ===")
-        
+        print("\n=== Testing Correct Trigger API Endpoints ===")
+
         # Test the discovered correct endpoints with required parameters
         correct_endpoints = [
             "/pipeline/api/triggers",
             "/gateway/pipeline/api/triggers",
         ]
-        
+
         # Required parameters for trigger API
         params = {
             "orgIdentifier": self.test_org,
             "projectIdentifier": self.test_project,
             "targetIdentifier": self.test_pipeline  # Pipeline identifier
         }
-        
+
         print(f"Using parameters: {params}")
-        
+
         for endpoint in correct_endpoints:
             try:
                 print(f"Testing GET {endpoint}")
@@ -242,14 +258,14 @@ inputSet:
                     print(f"✗ FAILED: {endpoint} returned None")
             except Exception as e:
                 print(f"✗ ERROR: {endpoint} - {str(e)}")
-                
+
         # Test without targetIdentifier to see if we can list all triggers in project
-        print(f"\n=== Testing Project-Level Trigger Listing ===")
+        print("\n=== Testing Project-Level Trigger Listing ===")
         project_params = {
             "orgIdentifier": self.test_org,
             "projectIdentifier": self.test_project
         }
-        
+
         for endpoint in correct_endpoints:
             try:
                 print(f"Testing GET {endpoint} (project-level)")
@@ -301,11 +317,11 @@ trigger:
         created_trigger = None
         successful_endpoint = None
 
-        print(f"\n=== Testing Trigger Creation ===")
+        print("\n=== Testing Trigger Creation ===")
         for endpoint in potential_create_endpoints:
             try:
                 print(f"Testing POST {endpoint}")
-                
+
                 # Try JSON approach with pipeline parameter
                 result = self.dest_client.post(
                     endpoint,
@@ -316,7 +332,7 @@ trigger:
                     },
                     json=trigger_json_data
                 )
-                
+
                 if result is not None:
                     print(f"✓ SUCCESS: Created trigger via {endpoint} (JSON)")
                     created_trigger = result
@@ -324,7 +340,7 @@ trigger:
                     break
                 else:
                     print(f"✗ FAILED: {endpoint} (JSON) returned None")
-                    
+
                     # Try YAML approach (like our actual code)
                     import requests
                     response = requests.post(
@@ -340,7 +356,7 @@ trigger:
                             "x-api-key": self.dest_api_key
                         }
                     )
-                    
+
                     if response.status_code in [200, 201]:
                         print(f"✓ SUCCESS: Created trigger via {endpoint} (YAML)")
                         created_trigger = response.json() if response.text else {"success": True}
@@ -348,14 +364,14 @@ trigger:
                         break
                     else:
                         print(f"✗ FAILED: {endpoint} (YAML) status {response.status_code}")
-                        
+
             except Exception as e:
                 print(f"✗ ERROR: {endpoint} - {str(e)}")
 
         # If we successfully created a trigger, try to read it back
         if created_trigger and successful_endpoint:
-            print(f"\n=== Testing Trigger Read ===")
-            
+            print("\n=== Testing Trigger Read ===")
+
             # Try to list triggers
             try:
                 list_endpoint = successful_endpoint
@@ -363,12 +379,12 @@ trigger:
                     list_endpoint,
                     params={"pipeline": self.test_pipeline}
                 )
-                
+
                 if triggers_list is not None:
                     print(f"✓ SUCCESS: Listed triggers via {list_endpoint}")
                     triggers = self.dest_client.normalize_response(triggers_list)
                     print(f"  Found {len(triggers)} trigger(s)")
-                    
+
                     # Look for our trigger
                     trigger_ids = [t.get("identifier") for t in triggers if isinstance(t, dict)]
                     if self.test_trigger in trigger_ids:
@@ -377,8 +393,8 @@ trigger:
                         print(f"✗ WARNING: Our trigger {self.test_trigger} not found in list")
                         print(f"  Available triggers: {trigger_ids}")
                 else:
-                    print(f"✗ FAILED: Could not list triggers")
-                    
+                    print("✗ FAILED: Could not list triggers")
+
             except Exception as e:
                 print(f"✗ ERROR listing triggers: {str(e)}")
 
@@ -389,14 +405,14 @@ trigger:
                     get_endpoint,
                     params={"pipeline": self.test_pipeline}
                 )
-                
+
                 if specific_trigger is not None:
                     print(f"✓ SUCCESS: Retrieved specific trigger via {get_endpoint}")
                     if isinstance(specific_trigger, dict):
                         print(f"  Trigger keys: {list(specific_trigger.keys())}")
                 else:
-                    print(f"✗ FAILED: Could not retrieve specific trigger")
-                    
+                    print("✗ FAILED: Could not retrieve specific trigger")
+
             except Exception as e:
                 print(f"✗ ERROR retrieving specific trigger: {str(e)}")
 
@@ -410,10 +426,10 @@ trigger:
 
         potential_endpoints = [
             f"/v1/orgs/{self.test_org}/projects/{self.test_project}/triggers",
-            f"/ng/api/triggers",
+            "/ng/api/triggers",
         ]
 
-        print(f"\n=== Testing Trigger List (No Pipeline Filter) ===")
+        print("\n=== Testing Trigger List (No Pipeline Filter) ===")
         for endpoint in potential_endpoints:
             try:
                 print(f"Testing GET {endpoint}")
@@ -469,29 +485,29 @@ trigger:
             }
         ]
 
-        print(f"\n=== Testing Trigger YAML Structures ===")
-        
+        print("\n=== Testing Trigger YAML Structures ===")
+
         for i, structure in enumerate(trigger_structures):
             print(f"\nTesting {structure['name']}:")
-            
+
             trigger_data = {
                 "trigger_yaml": structure["yaml"].strip()
             }
-            
+
             # Try the most likely endpoint
             endpoint = f"/v1/orgs/{self.test_org}/projects/{self.test_project}/triggers"
-            
+
             try:
                 result = self.dest_client.post(
                     endpoint,
                     params={"pipeline": self.test_pipeline},
                     json=trigger_data
                 )
-                
+
                 if result is not None:
                     print(f"✓ SUCCESS: {structure['name']} created successfully")
                 else:
                     print(f"✗ FAILED: {structure['name']} creation failed")
-                    
+
             except Exception as e:
                 print(f"✗ ERROR: {structure['name']} - {str(e)}")

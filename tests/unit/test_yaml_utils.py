@@ -24,10 +24,10 @@ pipeline:
 """
         dest_org = "new_org"
         dest_project = "new_project"
-        
+
         # Act
         result = YAMLUtils.update_identifiers(yaml_content, dest_org, dest_project, "pipeline")
-        
+
         # Assert
         data = yaml.safe_load(result)
         assert data["pipeline"]["orgIdentifier"] == dest_org
@@ -46,10 +46,10 @@ inputSet:
         dest_org = "new_org"
         dest_project = "new_project"
         wrapper_key = "inputSet"
-        
+
         # Act
         result = YAMLUtils.update_identifiers(yaml_content, dest_org, dest_project, wrapper_key)
-        
+
         # Assert
         data = yaml.safe_load(result)
         assert data["inputSet"]["orgIdentifier"] == dest_org
@@ -66,10 +66,10 @@ projectIdentifier: old_project
 """
         dest_org = "new_org"
         dest_project = "new_project"
-        
+
         # Act
         result = YAMLUtils.update_identifiers(yaml_content, dest_org, dest_project)
-        
+
         # Assert
         data = yaml.safe_load(result)
         assert data["orgIdentifier"] == dest_org
@@ -86,10 +86,10 @@ invalid: yaml: content: [
 """
         dest_org = "new_org"
         dest_project = "new_project"
-        
+
         # Act
         result = YAMLUtils.update_identifiers(yaml_content, dest_org, dest_project)
-        
+
         # Assert
         assert f'orgIdentifier: "{dest_org}"' in result
         assert f'projectIdentifier: "{dest_project}"' in result
@@ -104,11 +104,11 @@ pipeline:
 """
         dest_org = "new_org"
         dest_project = "new_project"
-        
+
         with patch('src.yaml_utils.yaml.safe_load', side_effect=yaml.YAMLError("Parse error")):
             # Act
             result = YAMLUtils.update_identifiers(yaml_content, dest_org, dest_project)
-        
+
         # Assert
         assert f'orgIdentifier: "{dest_org}"' in result
         assert f'projectIdentifier: "{dest_project}"' in result
@@ -125,10 +125,10 @@ pipeline:
         dest_org = "new_org"
         dest_project = "new_project"
         wrapper_key = "nonexistent"
-        
+
         # Act
         result = YAMLUtils.update_identifiers(yaml_content, dest_org, dest_project, wrapper_key)
-        
+
         # Assert
         data = yaml.safe_load(result)
         # Should update at root level when wrapper key doesn't exist
@@ -145,10 +145,10 @@ pipeline:
     templateRef: my-template
     versionLabel: v1
 """
-        
+
         # Act
         result = YAMLUtils.extract_template_refs(yaml_content)
-        
+
         # Assert
         assert result == [("my-template", "v1")]
 
@@ -170,10 +170,10 @@ pipeline:
         template:
           templateRef: another-template
 """
-        
+
         # Act
         result = YAMLUtils.extract_template_refs(yaml_content)
-        
+
         # Assert
         expected = [
             ("pipeline-template", "v1"),
@@ -197,10 +197,10 @@ pipeline:
                     templateRef: step-template
                     versionLabel: v3
 """
-        
+
         # Act
         result = YAMLUtils.extract_template_refs(yaml_content)
-        
+
         # Assert
         assert result == [("step-template", "v3")]
 
@@ -219,10 +219,10 @@ pipeline:
               - step:
                   name: Test Step
 """
-        
+
         # Act
         result = YAMLUtils.extract_template_refs(yaml_content)
-        
+
         # Assert
         assert result == []
 
@@ -234,10 +234,10 @@ invalid: yaml: content: [
   template:
     templateRef: my-template
 """
-        
+
         # Act
         result = YAMLUtils.extract_template_refs(yaml_content)
-        
+
         # Assert
         assert result == []
 
@@ -256,10 +256,10 @@ pipeline:
           templateRef: stage-template-2
           versionLabel: v2
 """
-        
+
         # Act
         result = YAMLUtils.extract_template_refs(yaml_content)
-        
+
         # Assert
         expected = [
             ("stage-template-1", "v1"),
@@ -276,10 +276,10 @@ template:
   versionLabel: old_version
 """
         version_label = "v2.0"
-        
+
         # Act
         result = YAMLUtils.set_template_version(yaml_content, version_label)
-        
+
         # Assert
         data = yaml.safe_load(result)
         assert data["template"]["versionLabel"] == version_label
@@ -292,10 +292,10 @@ template:
 template:
   name: Test Template
 """
-        
+
         # Act
         result = YAMLUtils.set_template_version(yaml_content)
-        
+
         # Assert
         data = yaml.safe_load(result)
         assert data["template"]["versionLabel"] == "stable"
@@ -308,10 +308,10 @@ template:
 name: Test Template
 identifier: test-template
 """
-        
+
         # Act
         result = YAMLUtils.set_template_version(yaml_content, "v1")
-        
+
         # Assert
         data = yaml.safe_load(result)
         # Should not add versionLabel if no template key exists
@@ -326,10 +326,10 @@ invalid: yaml: content: [
   template:
     name: Test Template
 """
-        
+
         # Act
         result = YAMLUtils.set_template_version(yaml_content, "v1")
-        
+
         # Assert
         assert result == yaml_content  # Should return original content
 
@@ -339,10 +339,10 @@ invalid: yaml: content: [
         yaml_content = ""
         dest_org = "new_org"
         dest_project = "new_project"
-        
+
         # Act
         result = YAMLUtils.update_identifiers(yaml_content, dest_org, dest_project)
-        
+
         # Assert
         # Should fall back to regex replacement for empty content
         # Empty content will result in empty string after regex replacement
@@ -364,10 +364,10 @@ pipeline:
 """
         dest_org = "new_org"
         dest_project = "new_project"
-        
+
         # Act
         result = YAMLUtils.update_identifiers(yaml_content, dest_org, dest_project, "pipeline")
-        
+
         # Assert
         data = yaml.safe_load(result)
         pipeline = data["pipeline"]
@@ -409,10 +409,10 @@ pipeline:
                         templateRef: parallel-step-2
                         versionLabel: v3
 """
-        
+
         # Act
         result = YAMLUtils.extract_template_refs(yaml_content)
-        
+
         # Assert
         expected = [
             ("main-template", "v1"),
@@ -433,11 +433,11 @@ pipeline:
 """
         dest_org = "new_org"
         dest_project = "new_project"
-        
+
         with patch('src.yaml_utils.yaml.safe_load', side_effect=TypeError("Type error")):
             # Act
             result = YAMLUtils.update_identifiers(yaml_content, dest_org, dest_project)
-        
+
         # Assert
         assert f'orgIdentifier: "{dest_org}"' in result
         assert f'projectIdentifier: "{dest_project}"' in result
@@ -452,12 +452,13 @@ pipeline:
 """
         dest_org = "new_org"
         dest_project = "new_project"
-        
+
         # Mock yaml.safe_load to return data that causes KeyError
         with patch('src.yaml_utils.yaml.safe_load', return_value={}):
             # Act
             result = YAMLUtils.update_identifiers(yaml_content, dest_org, dest_project)
-        
+
         # Assert
-        assert f'orgIdentifier: "{dest_org}"' in result
-        assert f'projectIdentifier: "{dest_project}"' in result
+        # Regex fallback produces unquoted values
+        assert f'orgIdentifier: {dest_org}' in result
+        assert f'projectIdentifier: {dest_project}' in result

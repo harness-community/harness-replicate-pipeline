@@ -38,7 +38,7 @@ def _get_destination_config():
     dest_url = os.getenv("INTEGRATION_TEST_DEST_URL")
     dest_api_key = os.getenv("INTEGRATION_TEST_DEST_API_KEY")
 
-    if dest_url and dest_api_key:
+    if dest_url and dest_api_key and _is_valid_config(dest_url, dest_api_key):
         return dest_url, dest_api_key
 
     # Fall back to config.json
@@ -50,7 +50,7 @@ def _get_destination_config():
         dest_url = dest_config.get("base_url")
         dest_api_key = dest_config.get("api_key")
 
-        if dest_url and dest_api_key:
+        if dest_url and dest_api_key and _is_valid_config(dest_url, dest_api_key):
             return dest_url, dest_api_key
     except (FileNotFoundError, json.JSONDecodeError, KeyError):
         pass
@@ -58,12 +58,20 @@ def _get_destination_config():
     return None, None
 
 
+def _is_valid_config(url, api_key):
+    """Check if the configuration values are valid (not placeholders)"""
+    # Common placeholder values that should be treated as invalid
+    invalid_api_keys = {"key", "your-api-key", "test-key", "placeholder", ""}
+    invalid_urls = {"https://your-harness-url", ""}
+    
+    return (
+        api_key not in invalid_api_keys and 
+        url not in invalid_urls and
+        len(api_key) > 10  # Real API keys are longer than placeholder values
+    )
+
+
 @pytest.mark.integration
-@pytest.mark.skipif(
-    _get_destination_config() == (None, None),
-    reason="Integration tests require destination configuration via "
-    "environment variables or config.json"
-)
 class TestIntegrationMigration:
     """Integration tests for end-to-end migration functionality"""
 
@@ -71,6 +79,14 @@ class TestIntegrationMigration:
     def setup_integration_test(self):
         """Setup integration test environment"""
         self.dest_url, self.dest_api_key = _get_destination_config()
+        
+        if not self.dest_url or not self.dest_api_key:
+            pytest.fail(
+                "Integration tests require valid Harness configuration.\n"
+                "Please set up config.json with valid destination credentials or use environment variables:\n"
+                "  INTEGRATION_TEST_DEST_URL=https://app.harness.io\n"
+                "  INTEGRATION_TEST_DEST_API_KEY=your-api-key"
+            )
 
         # Test identifiers with timestamp to avoid conflicts
         # Use underscores instead of hyphens to match Harness identifier requirements
@@ -283,6 +299,7 @@ pipeline:
         # Create a mock source client that returns our test data
         class MockSourceClient:
             """Mock source client for testing"""
+
             def get(self, endpoint, **_kwargs):
                 if "pipelines" in endpoint:
                     return [source_pipeline_data]
