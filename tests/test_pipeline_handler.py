@@ -195,9 +195,9 @@ class TestPipelineHandler:
         assert self.replication_stats["pipelines"]["success"] == 0
         self.mock_dest_client.post.assert_not_called()
         self.mock_dest_client.put.assert_not_called()
-        # Should not replicate input sets or triggers for skipped pipeline
-        self.mock_inputset_handler.replicate_input_sets.assert_not_called()
-        self.mock_trigger_handler.replicate_triggers.assert_not_called()
+        # Should still replicate input sets and triggers even for skipped pipeline
+        self.mock_inputset_handler.replicate_input_sets.assert_called_once_with("pipeline1")
+        self.mock_trigger_handler.replicate_triggers.assert_called_once_with("pipeline1")
 
     def test_replicate_pipelines_update_existing(self):
         """Test pipeline replication updates existing pipelines when update_existing is True"""
@@ -340,7 +340,6 @@ class TestPipelineHandler:
         
         # Mock template handler with templates
         template_refs = [("my-template", "v1")]
-        self.mock_template_handler.extract_template_refs.return_value = template_refs
         self.mock_template_handler.handle_missing_templates.return_value = True
         
         # Mock other handlers
@@ -348,19 +347,21 @@ class TestPipelineHandler:
         self.mock_trigger_handler.replicate_triggers.return_value = True
         
         with patch('src.pipeline_handler.YAMLUtils.update_identifiers') as mock_yaml_update:
-            mock_yaml_update.return_value = "updated_yaml"
-            
-            # Act
-            result = self.handler.replicate_pipelines(
-                self.mock_template_handler, 
-                self.mock_inputset_handler, 
-                self.mock_trigger_handler
-            )
+            with patch('src.pipeline_handler.YAMLUtils.extract_template_refs') as mock_extract:
+                mock_yaml_update.return_value = "updated_yaml"
+                mock_extract.return_value = template_refs
+                
+                # Act
+                result = self.handler.replicate_pipelines(
+                    self.mock_template_handler, 
+                    self.mock_inputset_handler, 
+                    self.mock_trigger_handler
+                )
         
         # Assert
         assert result is True
         assert self.replication_stats["pipelines"]["success"] == 1
-        self.mock_template_handler.extract_template_refs.assert_called_once()
+        mock_extract.assert_called_once()
         self.mock_template_handler.handle_missing_templates.assert_called_once_with(template_refs, "Pipeline 1")
 
     def test_replicate_pipelines_template_handling_fails(self):
@@ -375,18 +376,19 @@ class TestPipelineHandler:
         
         # Mock template handler failure
         template_refs = [("my-template", "v1")]
-        self.mock_template_handler.extract_template_refs.return_value = template_refs
         self.mock_template_handler.handle_missing_templates.return_value = False  # Template handling fails
         
         with patch('src.pipeline_handler.YAMLUtils.update_identifiers') as mock_yaml_update:
-            mock_yaml_update.return_value = "updated_yaml"
-            
-            # Act
-            result = self.handler.replicate_pipelines(
-                self.mock_template_handler, 
-                self.mock_inputset_handler, 
-                self.mock_trigger_handler
-            )
+            with patch('src.pipeline_handler.YAMLUtils.extract_template_refs') as mock_extract:
+                mock_yaml_update.return_value = "updated_yaml"
+                mock_extract.return_value = template_refs
+                
+                # Act
+                result = self.handler.replicate_pipelines(
+                    self.mock_template_handler, 
+                    self.mock_inputset_handler, 
+                    self.mock_trigger_handler
+                )
         
         # Assert
         assert result is True  # Method continues despite template failures
@@ -532,3 +534,145 @@ class TestPipelineHandler:
         assert self.mock_dest_client.post.call_count == 2
         assert self.mock_inputset_handler.replicate_input_sets.call_count == 2
         assert self.mock_trigger_handler.replicate_triggers.call_count == 2
+
+    def test_replicate_pipelines_non_dict_pipeline_details(self):
+        """Test pipeline replication with non-dict pipeline details"""
+        # Arrange
+        pipelines = [("test_pipeline", "Test Pipeline")]
+        
+        # Mock source client returns non-dict data
+        self.mock_source_client.get.return_value = "invalid_data"
+        
+        # Act
+        result = self.handler.replicate_pipelines(
+            self.mock_template_handler, 
+            self.mock_inputset_handler, 
+            self.mock_trigger_handler
+        )
+        
+        # Assert
+        assert result is True
+        assert self.replication_stats["pipelines"]["failed"] == 1
+        # Verify no destination client calls were made
+        self.mock_dest_client.get.assert_not_called()
+        self.mock_dest_client.post.assert_not_called()
+
+    def test_replicate_pipelines_with_templates_already_exist(self):
+        """Test pipeline replication when templates already exist"""
+        # Arrange
+        pipelines = [("test_pipeline", "Test Pipeline")]
+        
+        # Mock source client - pipeline details with templates
+        pipeline_details = {
+            "pipeline_yaml": "template:\n  templateRef: existing-template\n  versionLabel: v1"
+        }
+        self.mock_source_client.get.return_value = pipeline_details
+        
+        # Mock destination client - pipeline doesn't exist
+        self.mock_dest_client.get.return_value = None
+        self.mock_dest_client.post.return_value = {"status": "SUCCESS"}
+        
+        # Mock template handler
+        template_refs = [("existing-template", "v1")]
+        self.mock_template_handler.check_template_exists.return_value = True
+        self.mock_template_handler.handle_missing_templates.return_value = True
+        
+        # Mock other handlers
+        self.mock_inputset_handler.replicate_input_sets.return_value = True
+        self.mock_trigger_handler.replicate_triggers.return_value = True
+        
+        with patch('src.pipeline_handler.YAMLUtils.update_identifiers') as mock_update:
+            with patch('src.pipeline_handler.YAMLUtils.extract_template_refs') as mock_extract:
+                mock_update.return_value = "updated_yaml"
+                mock_extract.return_value = template_refs
+                # Act
+                result = self.handler.replicate_pipelines(
+                    self.mock_template_handler, 
+                    self.mock_inputset_handler, 
+                    self.mock_trigger_handler
+                )
+        
+        # Assert
+        assert result is True
+        assert self.replication_stats["pipelines"]["success"] == 1
+        assert self.replication_stats["templates"]["skipped"] == 1
+        
+        # Verify template existence was checked
+        self.mock_template_handler.check_template_exists.assert_called_once_with("existing-template", "v1")
+
+    def test_replicate_pipelines_empty_yaml_content(self):
+        """Test pipeline replication with empty YAML content"""
+        # Arrange
+        pipelines = [("test_pipeline", "Test Pipeline")]
+        
+        # Mock source client - pipeline details with empty yaml
+        pipeline_details = {
+            "pipeline_yaml": ""
+        }
+        self.mock_source_client.get.return_value = pipeline_details
+        
+        # Mock destination client - pipeline doesn't exist
+        self.mock_dest_client.get.return_value = None
+        self.mock_dest_client.post.return_value = {"status": "SUCCESS"}
+        
+        # Mock template handler
+        self.mock_template_handler.extract_template_refs.return_value = []
+        self.mock_template_handler.handle_missing_templates.return_value = True
+        
+        # Mock other handlers
+        self.mock_inputset_handler.replicate_input_sets.return_value = True
+        self.mock_trigger_handler.replicate_triggers.return_value = True
+        
+        with patch('src.pipeline_handler.YAMLUtils.update_identifiers') as mock_update:
+            mock_update.return_value = "updated_yaml"
+            # Act
+            result = self.handler.replicate_pipelines(
+                self.mock_template_handler, 
+                self.mock_inputset_handler, 
+                self.mock_trigger_handler
+            )
+        
+        # Assert
+        assert result is True
+        assert self.replication_stats["pipelines"]["success"] == 1
+        # Should not extract templates from empty YAML
+        self.mock_template_handler.extract_template_refs.assert_not_called()
+
+    def test_replicate_pipelines_no_yaml_content_key(self):
+        """Test pipeline replication when pipeline_yaml key is missing"""
+        # Arrange
+        pipelines = [("test_pipeline", "Test Pipeline")]
+        
+        # Mock source client - pipeline details without pipeline_yaml
+        pipeline_details = {
+            "identifier": "test_pipeline",
+            "name": "Test Pipeline"
+        }
+        self.mock_source_client.get.return_value = pipeline_details
+        
+        # Mock destination client - pipeline doesn't exist
+        self.mock_dest_client.get.return_value = None
+        self.mock_dest_client.post.return_value = {"status": "SUCCESS"}
+        
+        # Mock template handler
+        self.mock_template_handler.extract_template_refs.return_value = []
+        self.mock_template_handler.handle_missing_templates.return_value = True
+        
+        # Mock other handlers
+        self.mock_inputset_handler.replicate_input_sets.return_value = True
+        self.mock_trigger_handler.replicate_triggers.return_value = True
+        
+        with patch('src.pipeline_handler.YAMLUtils.update_identifiers') as mock_update:
+            mock_update.return_value = "updated_yaml"
+            # Act
+            result = self.handler.replicate_pipelines(
+                self.mock_template_handler, 
+                self.mock_inputset_handler, 
+                self.mock_trigger_handler
+            )
+        
+        # Assert
+        assert result is True
+        assert self.replication_stats["pipelines"]["success"] == 1
+        # Should not extract templates when no YAML content
+        self.mock_template_handler.extract_template_refs.assert_not_called()
