@@ -311,7 +311,7 @@ def get_selections_from_clients(source_client, dest_client, base_config: Dict[st
 
 
 def get_interactive_selections(source_client, dest_client, base_config: Dict[str, Any],
-                              config_file: str) -> Dict[str, Any]:
+                               config_file: str) -> Dict[str, Any]:
     """Get user selections with interactive dialogs - always show dialogs even if values exist"""
     from prompt_toolkit.shortcuts import yes_no_dialog
 
@@ -324,7 +324,7 @@ def get_interactive_selections(source_client, dest_client, base_config: Dict[str
             text=f"Current source organization: '{current_source_org}'\n\n"
                  f"Keep this selection?"
         ).run()
-        
+
         if not keep_source_org:
             source_org = select_organization(source_client, "SELECT NEW SOURCE ORGANIZATION")
             if not source_org:
@@ -347,7 +347,7 @@ def get_interactive_selections(source_client, dest_client, base_config: Dict[str
             text=f"Current source project: '{current_source_project}'\n\n"
                  f"Keep this selection?"
         ).run()
-        
+
         if not keep_source_project:
             source_project = select_project(source_client, source_org, "SELECT NEW SOURCE PROJECT")
             if not source_project:
@@ -367,16 +367,16 @@ def get_interactive_selections(source_client, dest_client, base_config: Dict[str
         # Show current pipelines and ask if user wants to change
         pipeline_names = [p.get("name", p.get("identifier", "Unknown")) for p in current_pipelines]
         pipeline_list = "\n".join(f"  - {name}" for name in pipeline_names)
-        
+
         keep_pipelines = yes_no_dialog(
             title="Pipeline Selection",
             text=f"Current selected pipelines ({len(current_pipelines)}):\n{pipeline_list}\n\n"
                  f"Keep this selection?"
         ).run()
-        
+
         if not keep_pipelines:
             pipelines = select_pipelines(source_client, source_org, source_project,
-                                       "SELECT NEW PIPELINES TO MIGRATE")
+                                         "SELECT NEW PIPELINES TO MIGRATE")
             if not pipelines:
                 return {}
             base_config["pipelines"] = pipelines
@@ -384,7 +384,7 @@ def get_interactive_selections(source_client, dest_client, base_config: Dict[str
             pipelines = current_pipelines
     else:
         pipelines = select_pipelines(source_client, source_org, source_project,
-                                   "SELECT PIPELINES TO REPLICATE")
+                                     "SELECT PIPELINES TO REPLICATE")
         if not pipelines:
             return {}
         base_config["pipelines"] = pipelines
@@ -398,10 +398,10 @@ def get_interactive_selections(source_client, dest_client, base_config: Dict[str
             text=f"Current destination organization: '{current_dest_org}'\n\n"
                  f"Keep this selection?"
         ).run()
-        
+
         if not keep_dest_org:
             dest_org = select_or_create_organization(dest_client,
-                                                   "SELECT OR CREATE NEW DESTINATION ORGANIZATION")
+                                                     "SELECT OR CREATE NEW DESTINATION ORGANIZATION")
             if not dest_org:
                 return {}
             base_config.setdefault("destination", {})["org"] = dest_org
@@ -409,7 +409,7 @@ def get_interactive_selections(source_client, dest_client, base_config: Dict[str
             dest_org = current_dest_org
     else:
         dest_org = select_or_create_organization(dest_client,
-                                               "SELECT OR CREATE DESTINATION ORGANIZATION")
+                                                 "SELECT OR CREATE DESTINATION ORGANIZATION")
         if not dest_org:
             return {}
         base_config.setdefault("destination", {})["org"] = dest_org
@@ -423,10 +423,10 @@ def get_interactive_selections(source_client, dest_client, base_config: Dict[str
             text=f"Current destination project: '{current_dest_project}'\n\n"
                  f"Keep this selection?"
         ).run()
-        
+
         if not keep_dest_project:
             dest_project = select_or_create_project(dest_client, dest_org,
-                                                   "SELECT OR CREATE NEW DESTINATION PROJECT")
+                                                    "SELECT OR CREATE NEW DESTINATION PROJECT")
             if not dest_project:
                 return {}
             base_config.setdefault("destination", {})["project"] = dest_project
@@ -434,7 +434,7 @@ def get_interactive_selections(source_client, dest_client, base_config: Dict[str
             dest_project = current_dest_project
     else:
         dest_project = select_or_create_project(dest_client, dest_org,
-                                               "SELECT OR CREATE DESTINATION PROJECT")
+                                                "SELECT OR CREATE DESTINATION PROJECT")
         if not dest_project:
             return {}
         base_config.setdefault("destination", {})["project"] = dest_project

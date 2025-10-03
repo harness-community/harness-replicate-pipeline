@@ -110,7 +110,7 @@ class TemplateHandler(BaseReplicator):
 
         # Check if template replication is enabled
         skip_templates = self._get_option("skip_templates", False)
-        
+
         if not skip_templates:
             logger.info("  Auto-replicating missing templates...")
             for template_ref, version_label in missing_templates:

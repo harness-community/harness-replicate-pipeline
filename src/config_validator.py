@@ -22,14 +22,14 @@ class ConfigValidator:
             ("source", "project"), ("destination", "base_url"), ("destination", "api_key"),
             ("destination", "org"), ("destination", "project")
         ]
-        
+
         # Check all required fields
         for section, key in required_fields:
             section_data = config.get(section, {})
             if isinstance(section_data, dict) and not section_data.get(key):
                 logger.error("Missing required field: %s.%s", section, key)
                 return False
-        
+
         # Only require pipelines in config if not provided via CLI
         if not has_cli_pipelines:
             if not config.get("pipelines"):

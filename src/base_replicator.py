@@ -23,7 +23,7 @@ class BaseReplicator:
         self.source_project = config["source"]["project"]
         self.dest_org = config["destination"]["org"]
         self.dest_project = config["destination"]["project"]
-        
+
         self.source_client = source_client
         self.dest_client = dest_client
         self.replication_stats = replication_stats

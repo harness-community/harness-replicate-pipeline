@@ -30,7 +30,7 @@ class TriggerHandler(BaseReplicator):
             "targetIdentifier": pipeline_id
         }
         triggers_response = self.source_client.get(endpoint, params=params)
-        
+
         if not triggers_response:
             logger.info("  No triggers found for pipeline: %s", pipeline_id)
             return True
@@ -80,7 +80,7 @@ class TriggerHandler(BaseReplicator):
                 "targetIdentifier": pipeline_id
             }
             trigger_response = self.source_client.get(get_endpoint, params=get_params)
-            
+
             # Extract trigger details from response
             if trigger_response and isinstance(trigger_response, dict):
                 trigger_details = trigger_response.get("data", {})
@@ -126,7 +126,7 @@ class TriggerHandler(BaseReplicator):
                 # Send the YAML content directly as the request body
                 if isinstance(trigger_details, dict) and "yaml" in trigger_details:
                     yaml_content = trigger_details["yaml"]
-                    
+
                     if existing_trigger:
                         # Use PUT for updates
                         result = self.dest_client.session.put(
@@ -143,7 +143,7 @@ class TriggerHandler(BaseReplicator):
                             data=yaml_content,
                             headers={"Content-Type": "application/yaml"}
                         )
-                    
+
                     # Check if the request was successful
                     if result.status_code in [200, 201]:
                         result = True

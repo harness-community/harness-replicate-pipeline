@@ -18,13 +18,13 @@ logger = logging.getLogger(__name__)
 
 def main():
     """Main entry point that creates a single source of truth configuration.
-    
+
     Merges all input sources in priority order:
     1. Config file (may not exist) - uses as defaults
     2. Environment variables (may not exist) - overrides existing values
     3. CLI arguments (may not exist) - overrides existing values
     4. Interactive mode selections (may not exist) - overrides existing values
-    
+
     Creates single source of truth that all subsequent operations use.
     """
     # Parse command line arguments
@@ -68,7 +68,7 @@ def _handle_config_saving(config: dict, original_config: dict, args) -> None:
     """Handle configuration saving based on mode and user preferences"""
     is_interactive = not args.non_interactive
     save_config_flag = getattr(args, 'save_config', False)
-    
+
     if should_save_config(config, original_config, is_interactive, save_config_flag):
         if is_interactive:
             # Interactive mode: prompt user to save
@@ -94,14 +94,14 @@ def _prompt_save_config(config: dict, config_file: str) -> None:
     """Prompt user to save configuration in interactive mode"""
     try:
         from prompt_toolkit.shortcuts import yes_no_dialog
-        
+
         should_save = yes_no_dialog(
             title="Save Configuration",
             text=f"The configuration has been updated with your selections.\n\n"
                  f"Would you like to save these changes to '{config_file}'?\n\n"
                  f"This will preserve your selections for future runs."
         ).run()
-        
+
         if should_save:
             if save_config(config, config_file):
                 logger.info("Configuration saved successfully")
@@ -109,7 +109,7 @@ def _prompt_save_config(config: dict, config_file: str) -> None:
                 logger.error("Failed to save configuration")
         else:
             logger.info("Configuration not saved (user choice)")
-            
+
     except ImportError:
         # Fallback if prompt_toolkit is not available
         logger.warning("Interactive save prompt not available - configuration not saved")
@@ -118,7 +118,7 @@ def _prompt_save_config(config: dict, config_file: str) -> None:
 def _validate_final_config(config: dict, is_non_interactive: bool, has_cli_pipelines: bool) -> bool:
     """Final validation - check for required variables and declare what must be set"""
     missing_vars = []
-    
+
     # Required fields for all modes
     required_fields = [
         ("source", "base_url", "Source Harness URL"),

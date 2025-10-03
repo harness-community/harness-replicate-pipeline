@@ -20,7 +20,7 @@ class ModeHandlers:
     @staticmethod
     def get_interactive_selections(config_file: str, args) -> Dict[str, Any]:
         """Get interactive selections that will be merged into the final configuration.
-        
+
         This function handles the interactive mode by getting user selections
         that will later be merged as the final step in the configuration priority order.
         """

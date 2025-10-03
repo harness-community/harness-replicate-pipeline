@@ -33,7 +33,7 @@ class PrerequisiteHandler(BaseReplicator):
         # Check if org exists by trying to get it directly
         org_endpoint = f"/v1/orgs/{self.dest_org}"
         existing_org = self.dest_client.get(org_endpoint)
-        
+
         if existing_org:
             logger.info("Organization '%s' already exists", self.dest_org)
             return True
@@ -58,7 +58,7 @@ class PrerequisiteHandler(BaseReplicator):
                 if org.get("identifier") == self.dest_org:
                     logger.info("Organization '%s' already exists (created concurrently)", self.dest_org)
                     return True
-            
+
             logger.error("Failed to create organization")
             return False
 
@@ -70,7 +70,7 @@ class PrerequisiteHandler(BaseReplicator):
         # Check if project exists by trying to get it directly
         project_endpoint = f"/v1/orgs/{self.dest_org}/projects/{self.dest_project}"
         existing_project = self.dest_client.get(project_endpoint)
-        
+
         if existing_project:
             logger.info("Project '%s' already exists", self.dest_project)
             return True
@@ -96,7 +96,7 @@ class PrerequisiteHandler(BaseReplicator):
                 if project.get("identifier") == self.dest_project:
                     logger.info("Project '%s' already exists (created concurrently)", self.dest_project)
                     return True
-            
+
             logger.error("Failed to create project")
             return False
 

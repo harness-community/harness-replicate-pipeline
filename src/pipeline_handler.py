@@ -90,7 +90,7 @@ class PipelineHandler(BaseReplicator):
                 # Replicate associated input sets
                 if not self._get_option("skip_input_sets", False):
                     inputset_handler.replicate_input_sets(pipeline_id)
-                    
+
                 # Replicate associated triggers (after input sets since triggers may reference them)
                 if not self._get_option("skip_triggers", False):
                     trigger_handler.replicate_triggers(pipeline_id)

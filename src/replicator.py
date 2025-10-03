@@ -78,6 +78,6 @@ class HarnessReplicator:
     def print_summary(self):
         """Print replication summary using output orchestrator"""
         from .output_orchestrator import get_orchestrator
-        
+
         orchestrator = get_orchestrator()
         orchestrator.output_summary(self.replication_stats)

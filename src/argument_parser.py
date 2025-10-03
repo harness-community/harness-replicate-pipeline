@@ -75,7 +75,7 @@ Usage Examples:
         --dest-project dest_project \\
         --pipeline pipeline1 \\
         --pipeline pipeline2
-        
+
     # Replicate specific pipelines with minimal config
     python main.py \\
         --non-interactive \\
