@@ -1,6 +1,6 @@
 # Harness Pipeline Replication Tool
 
-A Python tool to replicate Harness pipelines, input sets, and templates between
+A Python tool to replicate Harness pipelines, input sets, templates, and triggers between
 Harness accounts with an intuitive interactive interface or CLI option for automation.
 
 ---
@@ -213,6 +213,7 @@ That's it! The interactive mode guides you through everything.
 - Migrates complete pipeline YAML
 - Automatically updates `orgIdentifier` and `projectIdentifier` in YAML
 - Migrates input sets associated with pipelines
+- Migrates triggers associated with pipelines (webhook, scheduled, etc.)
 - Auto-replicates templates referenced by pipelines
 - Cross-instance support (app.harness.io ↔ app3.harness.io)
 - Auto-creates destination org/project if needed
@@ -426,7 +427,7 @@ Interactive mode will prompt for org/project/pipeline selections.
 - All trigger types supported by Harness
 - Migrated after input sets (triggers may reference input sets)
 - Auto-updated: `orgIdentifier` and `projectIdentifier`
-- **Note:** Disabled by default, use `--replicate-triggers` to enable
+- **Note:** Enabled by default, use `--skip-triggers` to disable
 
 ### ❌ NOT Migrated
 
