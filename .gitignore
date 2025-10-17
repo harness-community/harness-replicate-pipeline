@@ -5,6 +5,7 @@ config_*.json
 # Log files
 *.log
 migration_*.log
+tmp/
 
 # Python cache
 __pycache__/
